@@ -1,0 +1,416 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: #ffffff;
+  color: #111827;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app {
+  min-height: 100vh;
+}
+
+/* NAVBAR */
+
+.navbar {
+  height: 76px;
+  padding: 0 7%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #eeeeee;
+  background: white;
+}
+
+.logo span {
+  font-size: 27px;
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+
+.navbar nav {
+  display: flex;
+  gap: 35px;
+}
+
+.navbar nav a {
+  text-decoration: none;
+  color: #4b5563;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.navbar nav a:hover {
+  color: #111827;
+}
+
+.auth-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.auth-buttons button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.login {
+  background: white;
+  border: 1px solid #d1d5db;
+}
+
+.signup {
+  background: #111827;
+  color: white;
+  border: 1px solid #111827;
+}
+
+/* HERO */
+
+.hero {
+  padding: 100px 7% 80px;
+  background: #f8fafc;
+}
+
+.hero-content {
+  max-width: 900px;
+  margin: auto;
+  text-align: center;
+}
+
+.badge {
+  display: inline-block;
+  padding: 9px 16px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 25px;
+}
+
+.hero h1 {
+  font-size: clamp(45px, 7vw, 78px);
+  line-height: 1;
+  letter-spacing: -4px;
+  margin-bottom: 25px;
+}
+
+.hero h1 span {
+  color: #2563eb;
+}
+
+.hero-content > p {
+  max-width: 650px;
+  margin: auto;
+  color: #6b7280;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+/* SEARCH */
+
+.search-box {
+  max-width: 720px;
+  margin: 38px auto 15px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  padding: 7px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.07);
+}
+
+.search-box span {
+  padding: 0 12px;
+  font-size: 21px;
+}
+
+.search-box input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 14px 5px;
+  font-size: 16px;
+}
+
+.search-box button {
+  border: none;
+  background: #2563eb;
+  color: white;
+  padding: 14px 24px;
+  border-radius: 9px;
+  font-weight: 700;
+}
+
+.quick-search {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.quick-search button {
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+/* CATEGORIES */
+
+.categories {
+  padding: 90px 7%;
+}
+
+.section-heading {
+  text-align: center;
+  margin-bottom: 45px;
+}
+
+.section-heading > span,
+.section-label {
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.section-heading h2 {
+  font-size: 40px;
+  margin: 10px 0;
+}
+
+.section-heading p {
+  color: #6b7280;
+}
+
+.category-grid {
+  max-width: 1100px;
+  margin: auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.category-card {
+  padding: 25px;
+  border: 1px solid #e5e7eb;
+  border-radius: 15px;
+  transition: 0.2s;
+}
+
+.category-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
+.category-icon {
+  font-size: 32px;
+  margin-bottom: 15px;
+}
+
+.category-card h3 {
+  font-size: 17px;
+}
+
+.category-card p {
+  margin-top: 7px;
+  color: #2563eb;
+  font-size: 13px;
+}
+
+/* PROBLEM SECTION */
+
+.problem-section {
+  padding: 90px 7%;
+  background: #111827;
+  color: white;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 70px;
+  align-items: center;
+}
+
+.problem-section h2 {
+  font-size: 52px;
+  line-height: 1.05;
+  margin: 15px 0 20px;
+}
+
+.problem-section > div:first-child > p {
+  color: #cbd5e1;
+  max-width: 500px;
+  line-height: 1.7;
+}
+
+.problem-button {
+  margin-top: 25px;
+  border: none;
+  padding: 14px 22px;
+  border-radius: 9px;
+  font-weight: 700;
+}
+
+.assistant-card {
+  background: white;
+  color: #111827;
+  border-radius: 18px;
+  padding: 22px;
+  max-width: 470px;
+  margin-left: auto;
+}
+
+.assistant-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 18px;
+}
+
+.assistant-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: #eff6ff;
+  border-radius: 50%;
+}
+
+.assistant-header strong {
+  display: block;
+}
+
+.assistant-header small {
+  color: #16a34a;
+}
+
+.message {
+  padding: 13px 15px;
+  border-radius: 12px;
+  margin-top: 18px;
+  max-width: 80%;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.user-message {
+  background: #eff6ff;
+  margin-left: auto;
+}
+
+.bot-message {
+  background: #f3f4f6;
+}
+
+.assistant-input {
+  margin-top: 25px;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  color: #9ca3af;
+  display: flex;
+  justify-content: space-between;
+}
+
+.assistant-input button {
+  border: none;
+  background: transparent;
+}
+
+/* FOOTER */
+
+footer {
+  padding: 35px 7%;
+  text-align: center;
+  border-top: 1px solid #e5e7eb;
+}
+
+.footer-logo {
+  font-size: 25px;
+  font-weight: 900;
+}
+
+footer p {
+  color: #6b7280;
+  margin-top: 7px;
+  font-size: 13px;
+}
+
+/* MOBILE */
+
+@media (max-width: 800px) {
+  .navbar {
+    padding: 0 5%;
+  }
+
+  .navbar nav {
+    display: none;
+  }
+
+  .hero {
+    padding: 70px 5%;
+  }
+
+  .hero h1 {
+    letter-spacing: -2px;
+  }
+
+  .search-box {
+    flex-direction: row;
+  }
+
+  .category-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .problem-section {
+    grid-template-columns: 1fr;
+    padding: 70px 5%;
+  }
+
+  .assistant-card {
+    margin: 0;
+  }
+
+  .problem-section h2 {
+    font-size: 40px;
+  }
+}
+
+@media (max-width: 500px) {
+  .auth-buttons .login {
+    display: none;
+  }
+
+  .category-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .search-box input {
+    min-width: 0;
+  }
+
+  .search-box button {
+    padding: 12px 14px;
+  }
+}
