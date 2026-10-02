@@ -1,148 +1,571 @@
+import { useState, useEffect } from "react";
+import Auth from "./Auth";
+import Dashboard from "./Dashboard";
+import PropertyDetails from "./PropertyDetails";
+import { getProperties } from "./services/api";
 import "./App.css";
 
 function App() {
-  const categories = [
-    { icon: "🏠", name: "Housing" },
-    { icon: "🏨", name: "Hostels" },
-    { icon: "🔧", name: "Services" },
-    { icon: "🛒", name: "Shopping" },
-    { icon: "💼", name: "Jobs" },
-    { icon: "🚗", name: "Transport" },
-    { icon: "🏥", name: "Health" },
-    { icon: "🎓", name: "Education" },
-    { icon: "🍔", name: "Food" },
-    { icon: "📦", name: "Delivery" },
-    { icon: "🏪", name: "Businesses" },
-    { icon: "📅", name: "Events" },
-  ];
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState("login");
+  const [selectedPropertyId, setSelectedPropertyId] = useState(null);
+
+  // ===============================
+  // USER
+  // ===============================
+
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem("mtaa_user");
+
+    return savedUser
+      ? JSON.parse(savedUser)
+      : null;
+  });
+
+  // ===============================
+  // PROPERTIES
+  // ===============================
+
+  const [properties, setProperties] = useState([]);
+  const [loadingProperties, setLoadingProperties] = useState(true);
+  const [propertyError, setPropertyError] = useState("");
+
+  // ===============================
+  // LOAD PROPERTIES FROM BACKEND
+  // ===============================
+
+  useEffect(() => {
+    const loadProperties = async () => {
+      try {
+        setLoadingProperties(true);
+        setPropertyError("");
+
+        const data = await getProperties();
+
+        setProperties(data.properties || []);
+      } catch (error) {
+        console.error(
+          "Failed to load properties:",
+          error
+        );
+
+        setPropertyError(
+          "Unable to load properties."
+        );
+      } finally {
+        setLoadingProperties(false);
+      }
+    };
+
+    loadProperties();
+  }, []);
+
+  // ===============================
+  // AUTH
+  // ===============================
+
+  const openAuth = (mode) => {
+    setAuthMode(mode);
+    setShowAuth(true);
+  };
+
+  const handleLogin = (loggedInUser) => {
+    setUser(loggedInUser);
+    setShowAuth(false);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("mtaa_token");
+    localStorage.removeItem("mtaa_user");
+
+    setUser(null);
+    setShowAuth(false);
+    setAuthMode("login");
+    setSelectedPropertyId(null);
+  };
+
+  // ===============================
+  // LOGGED-IN USER
+  // ===============================
+
+  if (user) {
+    if (selectedPropertyId) {
+      return (
+        <PropertyDetails
+          propertyId={selectedPropertyId}
+          onBack={() =>
+            setSelectedPropertyId(null)
+          }
+        />
+      );
+    }
+
+    return (
+      <Dashboard
+        user={user}
+        onLogout={handleLogout}
+        onViewProperty={(propertyId) => {
+          setSelectedPropertyId(propertyId);
+        }}
+      />
+    );
+  }
+
+  // ===============================
+  // AUTH SCREEN
+  // ===============================
+
+  if (showAuth) {
+    return (
+      <Auth
+        onLogin={handleLogin}
+        initialMode={authMode}
+      />
+    );
+  }
+
+  // ===============================
+  // PUBLIC MTAA HOMEPAGE
+  // ===============================
 
   return (
-    <div className="app">
+    <div className="mtaa-app">
+
+      {/* ===============================
+          NAVBAR
+      =============================== */}
+
       <header className="navbar">
+
         <div className="logo">
           <span>MTAA</span>
         </div>
 
-        <nav>
-          <a href="#home">Home</a>
-          <a href="#services">Services</a>
-          <a href="#businesses">Businesses</a>
-          <a href="#about">About</a>
+        <nav className="nav-links">
+          <a href="#home">
+            Home
+          </a>
+
+          <a href="#properties">
+            Properties
+          </a>
+
+          <a href="#hostels">
+            Hostels
+          </a>
+
+          <a href="#services">
+            Services
+          </a>
         </nav>
 
-        <div className="auth-buttons">
-          <button className="login">Login</button>
-          <button className="signup">Sign Up</button>
+        <div className="nav-actions">
+
+          <button
+            className="login-btn"
+            onClick={() =>
+              openAuth("login")
+            }
+          >
+            Login
+          </button>
+
+          <button
+            className="signup-btn"
+            onClick={() =>
+              openAuth("register")
+            }
+          >
+            Create Account
+          </button>
+
         </div>
+
       </header>
 
       <main>
-        <section className="hero" id="home">
+
+        {/* ===============================
+            HERO SECTION
+        =============================== */}
+
+        <section
+          className="hero"
+          id="home"
+        >
+
           <div className="hero-content">
-            <div className="badge">
-              🌍 Everything you need, in one place
-            </div>
+
+            <p className="hero-label">
+              WELCOME TO MTAA
+            </p>
 
             <h1>
-              Solve your problem.
+              Find a place.
               <br />
-              <span>Find what you need.</span>
+              Find your{" "}
+              <span>
+                community.
+              </span>
             </h1>
 
-            <p>
-              Find people, businesses, products and services around you.
-              Whatever you need, MTAA helps you find it.
+            <p className="hero-description">
+              Discover houses, apartments,
+              hostels, commercial spaces and
+              useful services around you —
+              all in one platform.
             </p>
 
             <div className="search-box">
-              <span>🔍</span>
-              <input
-                type="text"
-                placeholder="What do you need help with?"
-              />
-              <button>Search</button>
+
+              <div className="search-field">
+
+                <span className="search-icon">
+                  ⌕
+                </span>
+
+                <div>
+
+                  <small>
+                    WHAT ARE YOU LOOKING FOR?
+                  </small>
+
+                  <input
+                    type="text"
+                    placeholder="Search houses, hostels, apartments..."
+                  />
+
+                </div>
+
+              </div>
+
+              <div className="location-field">
+
+                <span>
+                  📍
+                </span>
+
+                <div>
+
+                  <small>
+                    LOCATION
+                  </small>
+
+                  <input
+                    type="text"
+                    placeholder="Kasarani, Nairobi"
+                  />
+
+                </div>
+
+              </div>
+
+              <button className="search-btn">
+                Search
+              </button>
+
             </div>
 
-            <div className="quick-search">
-              <span>Popular:</span>
-              <button>House</button>
-              <button>Jobs</button>
-              <button>Fundi</button>
-              <button>Food</button>
-              <button>Delivery</button>
-            </div>
           </div>
+
         </section>
 
-        <section className="categories" id="services">
+        {/* ===============================
+            PROPERTIES SECTION
+        =============================== */}
+
+        <section
+          className="properties-section"
+          id="properties"
+        >
+
           <div className="section-heading">
-            <span>EXPLORE MTAA</span>
-            <h2>What do you need today?</h2>
+
+            <div>
+
+              <p className="section-label">
+                AVAILABLE PROPERTIES
+              </p>
+
+              <h2>
+                Find your next home.
+              </h2>
+
+            </div>
+
             <p>
-              Choose a category or simply search for your problem.
+              Explore real properties
+              currently available on MTAA.
             </p>
+
+          </div>
+
+          {/* LOADING */}
+
+          {loadingProperties && (
+            <div className="properties-message">
+              Loading properties...
+            </div>
+          )}
+
+          {/* ERROR */}
+
+          {propertyError && (
+            <div className="properties-message error">
+              {propertyError}
+            </div>
+          )}
+
+          {/* NO PROPERTIES */}
+
+          {!loadingProperties &&
+            !propertyError &&
+            properties.length === 0 && (
+              <div className="properties-message">
+                No properties available yet.
+              </div>
+            )}
+
+          {/* PROPERTY GRID */}
+
+          <div className="property-grid">
+
+            {properties.map((property) => (
+
+              <div
+                className="property-card"
+                key={property.id}
+              >
+
+                {/* PROPERTY IMAGE */}
+
+                <div className="property-image">
+
+                  {property.imageUrl ? (
+
+                    <img
+                      src={property.imageUrl}
+                      alt={property.title}
+                    />
+
+                  ) : (
+
+                    <div className="property-placeholder">
+                      🏠
+                    </div>
+
+                  )}
+
+                </div>
+
+                {/* PROPERTY INFORMATION */}
+
+                <div className="property-info">
+
+                  <p className="property-location">
+                    📍 {property.location}
+                  </p>
+
+                  <h3>
+                    {property.title}
+                  </h3>
+
+                  <p className="property-description">
+                    {property.description ||
+                      "No description provided."}
+                  </p>
+
+                  {/* DETAILS */}
+
+                  <div className="property-details">
+
+                    <span>
+                      🛏️{" "}
+                      {property.bedrooms}{" "}
+                      bedrooms
+                    </span>
+
+                    <span>
+                      🚿{" "}
+                      {property.bathrooms}{" "}
+                      bathrooms
+                    </span>
+
+                  </div>
+
+                  {/* PRICE + BUTTON */}
+
+                  <div className="property-bottom">
+
+                    <strong>
+                      KSh{" "}
+                      {Number(
+                        property.price
+                      ).toLocaleString()}
+                    </strong>
+
+                    <button
+                      onClick={() =>
+                        setSelectedPropertyId(
+                          property.id
+                        )
+                      }
+                    >
+                      View Property
+                    </button>
+
+                  </div>
+
+                  {/* OWNER */}
+
+                  {property.owner && (
+                    <div className="property-owner">
+
+                      <small>
+                        Listed by{" "}
+
+                        <strong>
+                          {property.owner.name}
+                        </strong>
+
+                      </small>
+
+                    </div>
+                  )}
+
+                </div>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        </section>
+
+        {/* ===============================
+            CATEGORIES
+        =============================== */}
+
+        <section
+          className="categories"
+          id="services"
+        >
+
+          <div className="section-heading">
+
+            <div>
+
+              <p className="section-label">
+                EXPLORE MTAA
+              </p>
+
+              <h2>
+                Everything you need,
+                <br />
+                in one place.
+              </h2>
+
+            </div>
+
+            <p>
+              MTAA connects people with
+              places, properties and services
+              in their community.
+            </p>
+
           </div>
 
           <div className="category-grid">
-            {categories.map((category) => (
-              <div className="category-card" key={category.name}>
-                <div className="category-icon">{category.icon}</div>
-                <h3>{category.name}</h3>
-                <p>Explore →</p>
+
+            {/* HOUSES */}
+
+            <div className="category-card">
+
+              <div className="category-icon">
+                🏠
               </div>
-            ))}
+
+              <h3>
+                Houses & Apartments
+              </h3>
+
+              <p>
+                Find your next home from
+                verified properties around
+                your community.
+              </p>
+
+            </div>
+
+            {/* HOSTELS */}
+
+            <div
+              className="category-card"
+              id="hostels"
+            >
+
+              <div className="category-icon">
+                🏨
+              </div>
+
+              <h3>
+                Hostels
+              </h3>
+
+              <p>
+                Discover hostels and student
+                accommodation close to where
+                you need.
+              </p>
+
+            </div>
+
+            {/* COMMERCIAL */}
+
+            <div className="category-card">
+
+              <div className="category-icon">
+                🏢
+              </div>
+
+              <h3>
+                Commercial Spaces
+              </h3>
+
+              <p>
+                Find shops, offices,
+                businesses and other
+                commercial spaces.
+              </p>
+
+            </div>
+
+            {/* SERVICES */}
+
+            <div className="category-card">
+
+              <div className="category-icon">
+                🛠️
+              </div>
+
+              <h3>
+                Local Services
+              </h3>
+
+              <p>
+                Discover useful services
+                and businesses around you.
+              </p>
+
+            </div>
+
           </div>
+
         </section>
 
-        <section className="problem-section">
-          <div>
-            <span className="section-label">HAVE A PROBLEM?</span>
-            <h2>
-              Just tell MTAA
-              <br />
-              what you need.
-            </h2>
-            <p>
-              You don't have to know which category to choose.
-              Describe your problem and we'll help you find the
-              right solution.
-            </p>
-
-            <button className="problem-button">
-              🤖 Ask MTAA
-            </button>
-          </div>
-
-          <div className="assistant-card">
-            <div className="assistant-header">
-              <div className="assistant-icon">🤖</div>
-              <div>
-                <strong>MTAA Assistant</strong>
-                <small>Online</small>
-              </div>
-            </div>
-
-            <div className="message user-message">
-              I need a plumber near me today.
-            </div>
-
-            <div className="message bot-message">
-              👋 I can help you find available plumbers near you.
-            </div>
-
-            <div className="assistant-input">
-              <span>Describe your problem...</span>
-              <button>➤</button>
-            </div>
-          </div>
-        </section>
       </main>
 
-      <footer>
-        <div className="footer-logo">MTAA</div>
-        <p>One platform. Many solutions.</p>
-        <p>© 2026 MTAA. All rights reserved.</p>
-      </footer>
     </div>
   );
 }
