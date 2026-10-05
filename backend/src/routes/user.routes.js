@@ -7,6 +7,74 @@ const {
   requireAdmin,
 } = require("../middleware/authMiddleware");
 
+router.put("/me", protect, async (req, res) => {
+  try {
+    const { name, phone } = req.body || {};
+
+    if (!name && !phone) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one field is required to update your profile.",
+      });
+    }
+
+    const dataToUpdate = {};
+
+    if (name !== undefined) {
+      const trimmedName = String(name).trim();
+
+      if (!trimmedName) {
+        return res.status(400).json({
+          success: false,
+          message: "Name cannot be empty.",
+        });
+      }
+
+      dataToUpdate.name = trimmedName;
+    }
+
+    if (phone !== undefined) {
+      const trimmedPhone = String(phone).trim();
+      dataToUpdate.phone = trimmedPhone || null;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: dataToUpdate,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("Update current user error:", error);
+
+    if (error.code === "P2025") {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to update profile",
+    });
+  }
+});
+
 // =====================================================
 // GET ALL USERS
 // GET /api/users

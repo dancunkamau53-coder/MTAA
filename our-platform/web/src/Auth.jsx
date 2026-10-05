@@ -2,7 +2,7 @@ import { useState } from "react";
 import { loginUser, registerUser } from "./services/api";
 import "./Auth.css";
 
-function Auth({ onLogin, initialMode = "login" }) {
+function Auth({ onLogin, initialMode = "login", initialRole = "USER" }) {
   const [mode, setMode] = useState(initialMode);
 
   const [form, setForm] = useState({
@@ -10,7 +10,7 @@ function Auth({ onLogin, initialMode = "login" }) {
     email: "",
     phone: "",
     password: "",
-    role: "USER",
+    role: initialRole,
   });
 
   const [loading, setLoading] = useState(false);
@@ -151,6 +151,10 @@ function Auth({ onLogin, initialMode = "login" }) {
 
                 <option value="CARETAKER">
                   Caretaker
+                </option>
+
+                <option value="SERVICE_PROVIDER">
+                  Service Provider
                 </option>
               </select>
             </>

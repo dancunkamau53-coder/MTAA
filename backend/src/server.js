@@ -4,26 +4,43 @@ const path = require("path");
 
 require("dotenv").config();
 
+// ==========================================
+// ROUTES
+// ==========================================
+
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/user.routes");
 const propertyRoutes = require("./routes/propertyRoutes");
+const propertyInteractionRoutes = require("./routes/propertyInteractionRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const serviceRoutes = require("./routes/serviceRoutes");
+
+// ==========================================
+// APP
+// ==========================================
 
 const app = express();
 
 const PORT = process.env.PORT || 5000;
 
-// ===============================
+// ==========================================
 // MIDDLEWARE
-// ===============================
+// ==========================================
 
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 
-// ===============================
-// STATIC FILES
-// PROPERTY IMAGES
-// ===============================
+app.use(express.urlencoded({ extended: true }));
+
+// ==========================================
+// UPLOADS
+// ==========================================
 
 app.use(
   "/uploads",
@@ -32,9 +49,9 @@ app.use(
   )
 );
 
-// ===============================
-// HEALTH CHECK
-// ===============================
+// ==========================================
+// HOME ROUTE
+// ==========================================
 
 app.get("/", (req, res) => {
   res.json({
@@ -44,9 +61,9 @@ app.get("/", (req, res) => {
   });
 });
 
-// ===============================
-// API TEST
-// ===============================
+// ==========================================
+// TEST ROUTE
+// ==========================================
 
 app.get("/api/test", (req, res) => {
   res.json({
@@ -55,36 +72,58 @@ app.get("/api/test", (req, res) => {
   });
 });
 
-// ===============================
+// ==========================================
 // AUTH ROUTES
-// ===============================
+// ==========================================
 
 app.use(
   "/api/auth",
   authRoutes
 );
 
-// ===============================
+// ==========================================
 // USER ROUTES
-// ===============================
+// ==========================================
 
 app.use(
   "/api/users",
   userRoutes
 );
 
-// ===============================
+app.use(
+  "/api/notifications",
+  notificationRoutes
+);
+
+app.use(
+  "/api/services",
+  serviceRoutes
+);
+
+// ==========================================
 // PROPERTY ROUTES
-// ===============================
+// ==========================================
 
 app.use(
   "/api/properties",
   propertyRoutes
 );
 
-// ===============================
-// 404 HANDLER
-// ===============================
+// ==========================================
+// PROPERTY INTERACTION ROUTES
+// Likes
+// Saves
+// Comments
+// ==========================================
+
+app.use(
+  "/api/properties",
+  propertyInteractionRoutes
+);
+
+// ==========================================
+// 404 ROUTE
+// ==========================================
 
 app.use((req, res) => {
   res.status(404).json({
@@ -93,27 +132,31 @@ app.use((req, res) => {
   });
 });
 
-// ===============================
+// ==========================================
 // ERROR HANDLER
-// ===============================
+// ==========================================
 
-app.use((err, req, res, next) => {
-  console.error(
-    "❌ Server Error:",
-    err
-  );
+app.use(
+  (err, req, res, next) => {
+    console.error(
+      "❌ Server Error:",
+      err
+    );
 
-  res.status(err.status || 500).json({
-    success: false,
-    message:
-      err.message ||
-      "Internal server error",
-  });
-});
+    res.status(
+      err.status || 500
+    ).json({
+      success: false,
+      message:
+        err.message ||
+        "Internal server error",
+    });
+  }
+);
 
-// ===============================
+// ==========================================
 // START SERVER
-// ===============================
+// ==========================================
 
 const server = app.listen(
   PORT,
@@ -144,14 +187,26 @@ const server = app.listen(
     );
 
     console.log(
+      "❤️ Likes: ENABLED"
+    );
+
+    console.log(
+      "🔖 Saves: ENABLED"
+    );
+
+    console.log(
+      "💬 Comments: ENABLED"
+    );
+
+    console.log(
       "================================="
     );
   }
 );
 
-// ===============================
+// ==========================================
 // SERVER ERROR
-// ===============================
+// ==========================================
 
 server.on(
   "error",

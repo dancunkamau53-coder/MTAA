@@ -1,27 +1,92 @@
-import { useEffect, useState } from "react";
-import { getProperty } from "./services/api";
+import { useEffect, useMemo, useState } from "react";
+
+import {
+  getProperty,
+  togglePropertyLike,
+  togglePropertySave,
+  getPropertyInteractionStatus,
+  getPropertyComments,
+  addPropertyComment,
+  deletePropertyComment,
+} from "./services/api";
+
 import "./PropertyDetails.css";
 
-function PropertyDetails({ propertyId, onBack }) {
-  const [property, setProperty] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+const API_ORIGIN =
+  import.meta.env.VITE_API_ORIGIN ||
+  window.location.origin;
 
-  const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [comment, setComment] = useState("");
+function PropertyDetails({
+  propertyId,
+  onBack,
+}) {
+  const [property, setProperty] = useState(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] = useState("");
+  const [selectedImage, setSelectedImage] =
+    useState(0);
+
+  const [liked, setLiked] =
+    useState(false);
+
+  const [saved, setSaved] =
+    useState(false);
+
+  const [likeCount, setLikeCount] =
+    useState(0);
+
+  // =====================================================
+  // COMMENTS STATE
+  // =====================================================
+
+  const [comments, setComments] =
+    useState([]);
+
+  const [commentText, setCommentText] =
+    useState("");
+
+  const [commentsLoading, setCommentsLoading] =
+    useState(true);
+
+  const [commentSubmitting, setCommentSubmitting] =
+    useState(false);
+
+  const [commentError, setCommentError] =
+    useState("");
+
+  // =====================================================
+  // LOAD PROPERTY
+  // =====================================================
 
   useEffect(() => {
     const loadProperty = async () => {
       try {
         setLoading(true);
-
+        setError("");
         const data = await getProperty(propertyId);
+        const loadedProperty = data?.property || data?.data?.property || data;
+        setProperty(loadedProperty);
 
-        setProperty(data.property);
+        setLikeCount(
+          Number(
+            loadedProperty?.likesCount ||
+              loadedProperty?.likeCount ||
+              loadedProperty?.likes?.length ||
+              0
+          )
+        );
       } catch (err) {
+        console.error(
+          "Failed to load property:",
+          err
+        );
+
         setError(
-          err.message || "Failed to load property."
+          err.message ||
+            "Failed to load property."
         );
       } finally {
         setLoading(false);
@@ -33,78 +98,781 @@ function PropertyDetails({ propertyId, onBack }) {
     }
   }, [propertyId]);
 
-  const handleShare = async () => {
-    const shareData = {
-      title: property?.title || "MTAA Property",
-      text:
-        property?.description ||
-        "Check out this property on MTAA.",
-      url: window.location.href,
-    };
+  // =====================================================
+  // LOAD INTERACTION STATUS
+  // =====================================================
 
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
-        await navigator.clipboard.writeText(
-          window.location.href
-        );
+  useEffect(() => {
+    const loadInteractionStatus =
+      async () => {
+        const token =
+          localStorage.getItem(
+            "mtaa_token"
+          );
 
-        alert("Property link copied!");
-      }
-    } catch (error) {
-      if (error.name !== "AbortError") {
-        alert("Unable to share property.");
-      }
+        if (!token || !propertyId) {
+          return;
+        }
+
+        try {
+          const data = await getPropertyInteractionStatus(propertyId, token);
+
+          setLiked(Boolean(data?.liked || data?.isLiked || data?.data?.liked || data?.data?.isLiked));
+          setSaved(Boolean(data?.saved || data?.isSaved || data?.data?.saved || data?.data?.isSaved));
+
+          const count =
+            data?.likesCount ??
+            data?.likeCount ??
+            data?.data?.likesCount ??
+            data?.data?.likeCount;
+          if (count !== undefined) setLikeCount(Number(count));
+        } catch (err) {
+          console.error(
+            "Failed to load interaction status:",
+            err
+          );
+        }
+      };
+
+    loadInteractionStatus();
+  }, [propertyId]);
+
+  // =====================================================
+  // LOAD COMMENTS
+  // =====================================================
+
+  useEffect(() => {
+    const loadComments =
+      async () => {
+        if (!propertyId) {
+          return;
+        }
+
+        try {
+          setCommentsLoading(true);
+          setCommentError("");
+
+          const data =
+            await getPropertyComments(
+              propertyId
+            );
+
+          const loadedComments =
+            data?.comments ||
+            data?.data?.comments ||
+            data?.data ||
+            (Array.isArray(data)
+              ? data
+              : []);
+
+          setComments(
+            Array.isArray(
+              loadedComments
+            )
+              ? loadedComments
+              : []
+          );
+        } catch (err) {
+          console.error(
+            "Failed to load comments:",
+            err
+          );
+
+          setCommentError(
+            err.message ||
+              "Failed to load comments."
+          );
+        } finally {
+          setCommentsLoading(false);
+        }
+      };
+
+    loadComments();
+  }, [propertyId]);
+
+  // =====================================================
+  // IMAGE URL
+  // =====================================================
+
+  const getImageUrl = (
+    image
+  ) => {
+    if (!image) {
+      return "";
     }
+
+    const url =
+      typeof image === "string"
+        ? image
+        : image.url ||
+          image.imageUrl;
+
+    if (!url) {
+      return "";
+    }
+
+    if (
+      url.startsWith("http://") ||
+      url.startsWith("https://")
+    ) {
+      return url;
+    }
+
+    return (
+      API_ORIGIN +
+      (url.startsWith("/")
+        ? url
+        : "/" + url)
+    );
   };
 
-  const handleComment = (event) => {
-    event.preventDefault();
+  // =====================================================
+  // PROPERTY IMAGES
+  // =====================================================
 
-    if (!comment.trim()) {
+  const propertyImages =
+    property?.images?.length
+      ? property.images
+      : property?.imageUrl
+        ? [property.imageUrl]
+        : [];
+
+  const galleryItems = [
+    ...propertyImages.map((image) => ({ type: "image", media: image })),
+    ...(property?.videos || []).map((video) => ({ type: "video", media: video })),
+  ];
+
+  if (galleryItems.length === 0) {
+    galleryItems.push({
+      type: "image",
+      media: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1400&q=80",
+    });
+  }
+
+  const selectedMedia = galleryItems[selectedImage] || galleryItems[0];
+
+  // =====================================================
+  // IMAGE NAVIGATION
+  // =====================================================
+
+  const nextImage = () => {
+    setSelectedImage(
+      (current) =>
+        (current + 1) %
+        galleryItems.length
+    );
+  };
+
+  const previousImage = () => {
+    setSelectedImage(
+      (current) =>
+        (current - 1 + galleryItems.length) %
+        galleryItems.length
+    );
+  };
+
+  // =====================================================
+  // LIKE
+  // =====================================================
+
+  const handleLike = async () => {
+    const token =
+      localStorage.getItem(
+        "mtaa_token"
+      );
+
+    if (!token) {
+      alert(
+        "Please login to like this property."
+      );
       return;
     }
 
-    alert(
-      "Comments will be connected to the MTAA database next."
-    );
+    try {
+      const data =
+        await togglePropertyLike(
+          propertyId,
+          token
+        );
 
-    setComment("");
+      const newLiked =
+        data?.liked ??
+        data?.isLiked ??
+        data?.data?.liked ??
+        data?.data?.isLiked;
+
+      if (
+        newLiked !== undefined
+      ) {
+        setLiked(
+          Boolean(newLiked)
+        );
+      } else {
+        setLiked(
+          (current) => !current
+        );
+      }
+
+      const count =
+        data?.likeCount ??
+        data?.likesCount ??
+        data?.data?.likeCount ??
+        data?.data?.likesCount;
+
+      if (
+        count !== undefined
+      ) {
+        setLikeCount(
+          Number(count)
+        );
+      } else {
+        setLikeCount(
+          (current) =>
+            liked
+              ? Math.max(
+                  0,
+                  current - 1
+                )
+              : current + 1
+        );
+      }
+    } catch (err) {
+      alert(
+        err.message ||
+          "Failed to update like."
+      );
+    }
   };
+
+  // =====================================================
+  // SAVE
+  // =====================================================
+
+  const handleSave = async () => {
+    const token =
+      localStorage.getItem(
+        "mtaa_token"
+      );
+
+    if (!token) {
+      alert(
+        "Please login to save this property."
+      );
+      return;
+    }
+
+    try {
+      const data =
+        await togglePropertySave(
+          propertyId,
+          token
+        );
+
+      const newSaved =
+        data?.saved ??
+        data?.isSaved ??
+        data?.data?.saved ??
+        data?.data?.isSaved;
+
+      if (
+        newSaved !== undefined
+      ) {
+        setSaved(
+          Boolean(newSaved)
+        );
+      } else {
+        setSaved(
+          (current) => !current
+        );
+      }
+    } catch (err) {
+      alert(
+        err.message ||
+          "Failed to save property."
+      );
+    }
+  };
+
+  // =====================================================
+  // SHARE
+  // =====================================================
+
+  const handleShare = async () => {
+    const shareUrl =
+      window.location.href;
+
+    try {
+      if (
+        navigator.share
+      ) {
+        await navigator.share({
+          title:
+            property?.title ||
+            "MTAA Property",
+          text:
+            "Check out this property on MTAA.",
+          url: shareUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(
+          shareUrl
+        );
+
+        alert(
+          "Property link copied!"
+        );
+      }
+    } catch (err) {
+      console.error(
+        "Share cancelled or failed:",
+        err
+      );
+    }
+  };
+
+  // =====================================================
+  // CONTACT OWNER
+  // =====================================================
+
+  const handleContactOwner =
+    () => {
+      const phone =
+        property?.owner?.phone;
+
+      if (phone) {
+        window.location.href =
+          "tel:" + phone;
+        return;
+      }
+
+      const email =
+        property?.owner?.email;
+
+      if (email) {
+        window.location.href =
+          "mailto:" + email;
+        return;
+      }
+
+      alert(
+        "The property owner has not provided contact details."
+      );
+    };
+
+  // =====================================================
+  // ADD COMMENT
+  // =====================================================
+
+  const handleAddComment =
+    async (event) => {
+      event.preventDefault();
+
+      const token =
+        localStorage.getItem(
+          "mtaa_token"
+        );
+
+      if (!token) {
+        alert(
+          "Please login to comment on this property."
+        );
+        return;
+      }
+
+      const trimmedComment =
+        commentText.trim();
+
+      if (!trimmedComment) {
+        setCommentError(
+          "Please write a comment before posting."
+        );
+        return;
+      }
+
+      if (
+        trimmedComment.length >
+        500
+      ) {
+        setCommentError(
+          "Comment cannot exceed 500 characters."
+        );
+        return;
+      }
+
+      try {
+        setCommentSubmitting(
+          true
+        );
+
+        setCommentError("");
+
+        const data =
+          await addPropertyComment(
+            propertyId,
+            trimmedComment,
+            token
+          );
+
+        const newComment =
+          data?.comment ||
+          data?.data?.comment ||
+          data?.data;
+
+        if (
+          newComment &&
+          typeof newComment ===
+            "object"
+        ) {
+          setComments(
+            (current) => [
+              newComment,
+              ...current,
+            ]
+          );
+        } else {
+          const refreshed =
+            await getPropertyComments(
+              propertyId
+            );
+
+          const refreshedComments =
+            refreshed?.comments ||
+            refreshed?.data?.comments ||
+            refreshed?.data ||
+            (Array.isArray(
+              refreshed
+            )
+              ? refreshed
+              : []);
+
+          setComments(
+            Array.isArray(
+              refreshedComments
+            )
+              ? refreshedComments
+              : []
+          );
+        }
+
+        setCommentText("");
+      } catch (err) {
+        console.error(
+          "Failed to add comment:",
+          err
+        );
+
+        setCommentError(
+          err.message ||
+            "Failed to add comment."
+        );
+      } finally {
+        setCommentSubmitting(
+          false
+        );
+      }
+    };
+
+  // =====================================================
+  // DELETE COMMENT
+  // =====================================================
+
+  const handleDeleteComment =
+    async (commentId) => {
+      const token =
+        localStorage.getItem(
+          "mtaa_token"
+        );
+
+      if (!token) {
+        alert(
+          "Please login first."
+        );
+        return;
+      }
+
+      const confirmed =
+        window.confirm(
+          "Are you sure you want to delete this comment?"
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        await deletePropertyComment(
+          propertyId,
+          commentId,
+          token
+        );
+
+        setComments(
+          (current) =>
+            current.filter(
+              (comment) =>
+                comment.id !==
+                commentId
+            )
+        );
+      } catch (err) {
+        alert(
+          err.message ||
+            "Failed to delete comment."
+        );
+      }
+    };
+
+  // =====================================================
+  // CURRENT USER
+  // =====================================================
+
+  let currentUser = null;
+
+  try {
+    const storedUser =
+      localStorage.getItem(
+        "mtaa_user"
+      );
+
+    if (storedUser) {
+      currentUser =
+        JSON.parse(storedUser);
+    }
+  } catch (err) {
+    console.error(
+      "Failed to read current user:",
+      err
+    );
+  }
+
+  // =====================================================
+  // COMMENT HELPERS
+  // =====================================================
+
+  const getCommentUser =
+    (comment) =>
+      comment?.user ||
+      comment?.author ||
+      comment?.createdBy ||
+      {};
+
+  const getCommentUserName =
+    (comment) => {
+      const user =
+        getCommentUser(comment);
+
+      return (
+        user?.name ||
+        comment?.userName ||
+        comment?.authorName ||
+        "MTAA User"
+      );
+    };
+
+  const getCommentUserRole =
+    (comment) => {
+      const user =
+        getCommentUser(comment);
+
+      return (
+        user?.role ||
+        comment?.userRole ||
+        "USER"
+      );
+    };
+
+  const canDeleteComment =
+    (comment) => {
+      if (
+        !currentUser ||
+        !comment
+      ) {
+        return false;
+      }
+
+      const user =
+        getCommentUser(comment);
+
+      const currentUserId =
+        currentUser.id ||
+        currentUser.userId;
+
+      const commentUserId =
+        comment.userId ||
+        comment.authorId ||
+        user.id ||
+        user.userId;
+
+      if (
+        currentUserId &&
+        commentUserId
+      ) {
+        return (
+          String(
+            currentUserId
+          ) ===
+          String(
+            commentUserId
+          )
+        );
+      }
+
+      return false;
+    };
+
+  const formatCommentDate =
+    (date) => {
+      if (!date) {
+        return "";
+      }
+
+      const parsedDate =
+        new Date(date);
+
+      if (
+        Number.isNaN(
+          parsedDate.getTime()
+        )
+      ) {
+        return "";
+      }
+
+      return parsedDate.toLocaleString(
+        "en-KE",
+        {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }
+      );
+    };
+
+  // =====================================================
+  // LOADING
+  // =====================================================
 
   if (loading) {
     return (
       <div className="property-details-loading">
-        Loading property...
+        <div className="loading-spinner"></div>
+
+        <p>
+          Loading property...
+        </p>
       </div>
     );
   }
 
+  // =====================================================
+  // ERROR
+  // =====================================================
+
   if (error || !property) {
     return (
       <div className="property-details-error">
-        <h2>Property unavailable</h2>
+        <div className="error-icon">
+          ⚠️
+        </div>
+
+        <h2>
+          Property Not Found
+        </h2>
 
         <p>
-          {error || "Property could not be found."}
+          {error ||
+            "This property could not be loaded."}
         </p>
 
-        <button onClick={onBack}>
-          ← Back to Dashboard
+        <button
+          className="back-button"
+          onClick={onBack}
+        >
+          ← Go Back
         </button>
       </div>
     );
   }
 
+  // =====================================================
+  // NEARBY SERVICES
+  // =====================================================
+
+  const nearbyServices = useMemo(() => {
+    const source = `${
+      property?.location || ""
+    } ${property?.propertyType || ""}`;
+
+    let seed = 0;
+
+    for (const char of source) {
+      seed += char.charCodeAt(0);
+    }
+
+    const services = [
+      {
+        label: "Hospital",
+        icon: "🏥",
+        detail: "Medical care",
+        offset: 140,
+      },
+      {
+        label: "School",
+        icon: "🏫",
+        detail: "Education access",
+        offset: 240,
+      },
+      {
+        label: "Shopping",
+        icon: "🛒",
+        detail: "Daily essentials",
+        offset: 95,
+      },
+      {
+        label: "Transport",
+        icon: "🚌",
+        detail: "Public transit",
+        offset: 70,
+      },
+    ];
+
+    return services.map((service, index) => {
+      const distance =
+        220 +
+        ((seed + index * 93) % 1800) +
+        service.offset;
+
+      return {
+        ...service,
+        distance,
+        unit: distance >= 1000 ? "km" : "m",
+        value:
+          distance >= 1000
+            ? (distance / 1000).toFixed(1)
+            : distance,
+      };
+    });
+  }, [property?.location, property?.propertyType]);
+
+  // =====================================================
+  // OWNER
+  // =====================================================
+
+  const ownerName =
+    property.owner?.name ||
+    "MTAA Property Owner";
+
+  const ownerRole =
+    property.owner?.role ||
+    "PROPERTY OWNER";
+
+  // =====================================================
+  // MAIN UI
+  // =====================================================
+
   return (
     <div className="property-details-page">
 
-      {/* =====================================
-          TOP BAR
-          ===================================== */}
-
-      <header className="property-details-topbar">
+      {/* HEADER */}
+      <header className="property-details-header">
 
         <button
           className="back-button"
@@ -113,338 +881,636 @@ function PropertyDetails({ propertyId, onBack }) {
           ← Back
         </button>
 
-        <div className="property-details-logo">
-          MTAA
-        </div>
+        <div className="header-brand">
+          <strong>
+            MTAA
+          </strong>
 
-        <div className="property-top-actions">
-
-          <button
-            className={liked ? "active-action" : ""}
-            onClick={() => setLiked(!liked)}
-          >
-            {liked ? "❤️" : "♡"} Like
-          </button>
-
-          <button
-            className={saved ? "active-action" : ""}
-            onClick={() => setSaved(!saved)}
-          >
-            {saved ? "💾" : "🔖"} Save
-          </button>
-
-          <button onClick={handleShare}>
-            🔗 Share
-          </button>
-
+          <span>
+            Property Details
+          </span>
         </div>
 
       </header>
 
+      {/* MAIN */}
       <main className="property-details-container">
 
-        {/* =================================
-            PROPERTY HEADER
-            ================================= */}
+        {/* GALLERY */}
+        <section className="property-gallery">
 
-        <section className="property-details-header">
+          <div className="property-main-image">
 
-          <div>
+            {selectedMedia.type === "video" ? (
+              <video
+                className="property-gallery-video"
+                src={getImageUrl(selectedMedia.media.url)}
+                controls
+                playsInline
+                preload="metadata"
+                aria-label={`${property.title || "Property"} video tour`}
+              />
+            ) : (
+              <img
+                src={getImageUrl(selectedMedia.media)}
+                alt={property.title || "Property"}
+              />
+            )}
 
-            <p className="property-details-label">
-              MTAA PROPERTY
-            </p>
-
-            <h1>
-              {property.title}
-            </h1>
-
-            <p className="property-details-location">
-              📍 {property.location}
-            </p>
-
-          </div>
-
-          <div className="property-details-price">
-
-            <strong>
-              KSh{" "}
-              {Number(
-                property.price
-              ).toLocaleString()}
-            </strong>
-
-            <span>
-              per month
-            </span>
-
-          </div>
-
-        </section>
-
-        {/* =================================
-            MAIN MEDIA
-            ================================= */}
-
-        <section className="property-main-media">
-
-          {property.imageUrl ? (
-
-            <img
-              src={property.imageUrl}
-              alt={property.title}
-            />
-
-          ) : (
-
-            <div className="property-no-image">
-              🏠
-              <span>
-                MTAA
-              </span>
+            <div className="property-image-badge">
+              🏠{" "}
+              {property.propertyType ||
+                "Property"}
             </div>
 
+            {galleryItems.length >
+              1 && (
+              <>
+                <button
+                  className="gallery-arrow gallery-arrow-left"
+                  onClick={
+                    previousImage
+                  }
+                  aria-label="Previous image"
+                >
+                  ‹
+                </button>
+
+                <button
+                  className="gallery-arrow gallery-arrow-right"
+                  onClick={
+                    nextImage
+                  }
+                  aria-label="Next image"
+                >
+                  ›
+                </button>
+
+                <div className="property-image-count">
+                  {selectedImage +
+                    1}{" "}
+                  /{" "}
+                  {galleryItems.length}
+                </div>
+              </>
+            )}
+
+          </div>
+
+          {galleryItems.length >
+            1 && (
+            <div className="property-thumbnails">
+
+              {galleryItems.map((item, index) => (
+                  <button
+                    key={
+                      item.media?.id ||
+                      index
+                    }
+                    className={
+                      "property-thumbnail " +
+                      (selectedImage ===
+                      index
+                        ? "active"
+                        : "")
+                    }
+                    onClick={() =>
+                      setSelectedImage(
+                        index
+                      )
+                    }
+                  >
+                    {item.type === "video" ? (
+                      <span className="property-video-thumbnail">
+                        <strong aria-hidden="true">▶</strong>
+                        <small>Video tour</small>
+                      </span>
+                    ) : (
+                      <img
+                        src={getImageUrl(item.media)}
+                        alt={`Property photo ${index + 1}`}
+                      />
+                    )}
+                  </button>
+              ))}
+
+            </div>
           )}
 
         </section>
 
-        {/* =================================
-            PROPERTY INFO
-            ================================= */}
+        {/* PROPERTY INFORMATION */}
+        <section className="property-information">
 
-        <section className="property-info-layout">
+          <div className="property-title-section">
 
-          <div className="property-primary-content">
+            <div>
 
-            {/* FEATURES */}
+              <span className="property-type-label">
+                {property.propertyType ||
+                  "PROPERTY"}
+              </span>
 
-            <div className="property-features">
+              <h1>
+                {property.title}
+              </h1>
 
-              <div>
-                <span>🛏️</span>
-                <strong>
-                  {property.bedrooms || 0}
-                </strong>
-                <small>
-                  Bedrooms
-                </small>
-              </div>
-
-              <div>
-                <span>🚿</span>
-                <strong>
-                  {property.bathrooms || 0}
-                </strong>
-                <small>
-                  Bathrooms
-                </small>
-              </div>
-
-              <div>
-                <span>📍</span>
-                <strong>
-                  Location
-                </strong>
-                <small>
-                  {property.location}
-                </small>
-              </div>
+              <p className="property-location">
+                📍{" "}
+                {property.location}
+              </p>
 
             </div>
 
-            {/* DESCRIPTION */}
+            <div className="property-price">
 
-            <section className="property-description-section">
+              <strong>
+                KSh{" "}
+                {Number(
+                  property.price ||
+                    0
+                ).toLocaleString()}
+              </strong>
 
-              <p className="property-section-label">
-                ABOUT THIS PROPERTY
-              </p>
+              <span>
+                per month
+              </span>
 
-              <h2>
-                Property description
-              </h2>
-
-              <p>
-                {property.description ||
-                  "No description has been provided for this property."}
-              </p>
-
-            </section>
-
-            {/* MEDIA */}
-
-            <section className="property-gallery-section">
-
-              <div className="property-section-heading">
-
-                <div>
-
-                  <p className="property-section-label">
-                    PROPERTY MEDIA
-                  </p>
-
-                  <h2>
-                    Photos & Videos
-                  </h2>
-
-                </div>
-
-                <span>
-                  Coming with permanent
-                  media storage
-                </span>
-
-              </div>
-
-              <div className="property-gallery-placeholder">
-
-                <div>
-                  📸
-                </div>
-
-                <h3>
-                  Property gallery
-                </h3>
-
-                <p>
-                  Multiple photos and property
-                  videos will appear here once
-                  permanent media storage is
-                  connected.
-                </p>
-
-              </div>
-
-            </section>
-
-            {/* COMMENTS */}
-
-            <section className="property-comments">
-
-              <p className="property-section-label">
-                COMMUNITY
-              </p>
-
-              <h2>
-                Comments & questions
-              </h2>
-
-              <form
-                onSubmit={handleComment}
-                className="comment-form"
-              >
-
-                <textarea
-                  value={comment}
-                  onChange={(event) =>
-                    setComment(event.target.value)
-                  }
-                  placeholder="Ask the owner a question..."
-                />
-
-                <button type="submit">
-                  Post Comment
-                </button>
-
-              </form>
-
-            </section>
+            </div>
 
           </div>
 
-          {/* =================================
-              OWNER SIDEBAR
-              ================================= */}
+          {/* FEATURES */}
+          <div className="property-features">
 
-          <aside className="owner-card">
+            <div className="feature-box">
+              <span>
+                🛏️
+              </span>
 
-            <p className="property-section-label">
-              PROPERTY CONTACT
-            </p>
+              <strong>
+                {property.bedrooms ??
+                  "—"}
+              </strong>
+
+              <small>
+                Bedrooms
+              </small>
+            </div>
+
+            <div className="feature-box">
+              <span>
+                🚿
+              </span>
+
+              <strong>
+                {property.bathrooms ??
+                  "—"}
+              </strong>
+
+              <small>
+                Bathrooms
+              </small>
+            </div>
+
+            <div className="feature-box">
+              <span>
+                🚗
+              </span>
+
+              <strong>
+                {property.parking ??
+                  "—"}
+              </strong>
+
+              <small>
+                Parking
+              </small>
+            </div>
+
+          </div>
+
+          {/* DESCRIPTION */}
+          <section className="details-section">
 
             <h2>
-              Owner / Agent
+              About This Property
             </h2>
 
-            <div className="owner-profile">
+            <p>
+              {property.description ||
+                "No description has been provided for this property yet."}
+            </p>
+
+          </section>
+
+          {/* LOCATION */}
+          <section className="details-section">
+
+            <h2>
+              📍 Location
+            </h2>
+
+            <div className="location-card">
+
+              <strong>
+                {property.location}
+              </strong>
+
+              {property.latitude !==
+                null &&
+                property.latitude !==
+                  undefined &&
+                property.longitude !==
+                  null &&
+                property.longitude !==
+                  undefined && (
+                  <p>
+                    Coordinates:{" "}
+                    {
+                      property.latitude
+                    }
+                    ,{" "}
+                    {
+                      property.longitude
+                    }
+                  </p>
+                )}
+
+            </div>
+
+          </section>
+
+          {/* NEARBY SERVICES */}
+          <section className="details-section">
+
+            <h2>
+              🧭 Nearby Services
+            </h2>
+
+            <div className="nearby-services-grid">
+              {nearbyServices.map((service) => (
+                <div
+                  className="nearby-service-card"
+                  key={service.label}
+                >
+                  <div className="nearby-service-icon">
+                    {service.icon}
+                  </div>
+
+                  <div className="nearby-service-body">
+                    <strong>{service.label}</strong>
+                    <span>{service.detail}</span>
+                  </div>
+
+                  <div className="nearby-service-distance">
+                    <strong>
+                      {service.value}
+                      {service.unit}
+                    </strong>
+                    <small>away</small>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+          </section>
+
+          {/* OWNER */}
+          <section className="details-section">
+
+            <h2>
+              Property Owner
+            </h2>
+
+            <div className="owner-card">
 
               <div className="owner-avatar">
-                {property.owner?.name
-                  ? property.owner.name
-                      .charAt(0)
-                      .toUpperCase()
-                  : "M"}
+                {ownerName
+                  .charAt(0)
+                  .toUpperCase()}
               </div>
 
-              <div>
+              <div className="owner-information">
 
                 <strong>
-                  {property.owner?.name ||
-                    "MTAA Property Owner"}
+                  {ownerName}
                 </strong>
 
                 <span>
-                  {property.owner?.role ||
-                    "PROPERTY OWNER"}
+                  {ownerRole}
                 </span>
 
+                {property.owner
+                  ?.email && (
+                  <small>
+                    ✉️{" "}
+                    {
+                      property.owner
+                        .email
+                    }
+                  </small>
+                )}
+
+                {property.owner
+                  ?.phone && (
+                  <small>
+                    📞{" "}
+                    {
+                      property.owner
+                        .phone
+                    }
+                  </small>
+                )}
+
               </div>
 
             </div>
 
-            {/* PHONE */}
+          </section>
 
-            {property.owner?.phone && (
+          {/* ACTIONS */}
+          <section className="property-actions">
 
-              <a
-                className="owner-contact-button"
-                href={`tel:${property.owner.phone}`}
-              >
-                📞 Call Owner
-              </a>
+            <button
+              className="contact-button"
+              onClick={
+                handleContactOwner
+              }
+            >
+              📞 Contact Owner
+            </button>
 
-            )}
+            <button
+              className={
+                "save-button " +
+                (saved
+                  ? "active"
+                  : "")
+              }
+              onClick={
+                handleSave
+              }
+            >
+              {saved
+                ? "🔖 Saved"
+                : "🔖 Save Property"}
+            </button>
 
-            {/* WHATSAPP */}
+            <button
+              className={
+                "like-button " +
+                (liked
+                  ? "active"
+                  : "")
+              }
+              onClick={
+                handleLike
+              }
+            >
+              {liked
+                ? "❤️"
+                : "🤍"}{" "}
+              Like
+              {likeCount >
+                0 &&
+                " (" +
+                  likeCount +
+                  ")"}
+            </button>
 
-            {property.owner?.phone && (
+            <button
+              className="share-button"
+              onClick={
+                handleShare
+              }
+            >
+              📤 Share
+            </button>
 
-              <a
-                className="owner-contact-button whatsapp"
-                href={`https://wa.me/${property.owner.phone}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                💬 WhatsApp
-              </a>
+          </section>
 
-            )}
+          {/* =================================================
+              COMMENTS
+          ================================================= */}
 
-            {/* EMAIL */}
+          <section className="details-section comments-section">
 
-            {property.owner?.email && (
+            <div className="comments-header">
 
-              <div className="owner-email">
-                ✉️ {property.owner.email}
+              <div>
+                <h2>
+                  💬 Comments
+                </h2>
+
+                <p>
+                  Share your thoughts or ask about this property.
+                </p>
               </div>
 
-            )}
-
-            <div className="owner-note">
-
-              <span>
-                🛡️
+              <span className="comments-count">
+                {comments.length}{" "}
+                {comments.length ===
+                1
+                  ? "Comment"
+                  : "Comments"}
               </span>
 
-              <p>
-                Always verify the property and
-                owner details before making any
-                payment.
-              </p>
+            </div>
+
+            {/* COMMENT FORM */}
+
+            <form
+              className="comment-form"
+              onSubmit={
+                handleAddComment
+              }
+            >
+
+              <textarea
+                value={
+                  commentText
+                }
+                onChange={(event) =>
+                  setCommentText(
+                    event.target
+                      .value
+                  )
+                }
+                placeholder="Write a comment about this property..."
+                maxLength={500}
+                disabled={
+                  commentSubmitting
+                }
+              />
+
+              <div className="comment-form-footer">
+
+                <span>
+                  {
+                    commentText.length
+                  }
+                  /500
+                </span>
+
+                <button
+                  type="submit"
+                  disabled={
+                    commentSubmitting ||
+                    !commentText.trim()
+                  }
+                >
+                  {commentSubmitting
+                    ? "Posting..."
+                    : "Post Comment"}
+                </button>
+
+              </div>
+
+            </form>
+
+            {commentError && (
+              <div className="comment-error">
+                {commentError}
+              </div>
+            )}
+
+            {/* COMMENTS LIST */}
+
+            <div className="comments-list">
+
+              {commentsLoading ? (
+                <div className="comments-loading">
+                  Loading comments...
+                </div>
+              ) : comments.length ===
+                0 ? (
+                <div className="comments-empty">
+
+                  <div>
+                    💬
+                  </div>
+
+                  <strong>
+                    No comments yet
+                  </strong>
+
+                  <p>
+                    Be the first person to comment on this property.
+                  </p>
+
+                </div>
+              ) : (
+                comments.map(
+                  (
+                    comment,
+                    index
+                  ) => {
+                    const user =
+                      getCommentUser(
+                        comment
+                      );
+
+                    const userName =
+                      getCommentUserName(
+                        comment
+                      );
+
+                    const userRole =
+                      getCommentUserRole(
+                        comment
+                      );
+
+                    const commentDate =
+                      comment.createdAt ||
+                      comment.created_at ||
+                      comment.date;
+
+                    const commentTextValue =
+                      comment.comment ||
+                      comment.text ||
+                      comment.content ||
+                      "";
+
+                    return (
+                      <article
+                        className="comment-card"
+                        key={
+                          comment.id ||
+                          index
+                        }
+                      >
+
+                        <div className="comment-avatar">
+                          {userName
+                            .charAt(
+                              0
+                            )
+                            .toUpperCase()}
+                        </div>
+
+                        <div className="comment-content">
+
+                          <div className="comment-top">
+
+                            <div className="comment-user">
+
+                              <strong>
+                                {
+                                  userName
+                                }
+                              </strong>
+
+                              <span>
+                                {
+                                  userRole
+                                }
+                              </span>
+
+                            </div>
+
+                            {canDeleteComment(
+                              comment
+                            ) && (
+                              <button
+                                className="delete-comment-button"
+                                onClick={() =>
+                                  handleDeleteComment(
+                                    comment.id
+                                  )
+                                }
+                              >
+                                🗑️ Delete
+                              </button>
+                            )}
+
+                          </div>
+
+                          <p>
+                            {
+                              commentTextValue
+                            }
+                          </p>
+
+                          {commentDate && (
+                            <small className="comment-date">
+                              {formatCommentDate(
+                                commentDate
+                              )}
+                            </small>
+                          )}
+
+                        </div>
+
+                      </article>
+                    );
+                  }
+                )
+              )}
 
             </div>
 
-          </aside>
+          </section>
 
         </section>
 

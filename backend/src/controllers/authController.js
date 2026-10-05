@@ -48,9 +48,13 @@ const register = async (req, res) => {
       });
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     if (phone) {
-      const existingPhone = await prisma.user.findUnique({
-        where: { phone },
+      const existingPhone = await prisma.user.findFirst({
+        where: {
+          phone,
+        },
       });
 
       if (existingPhone) {
@@ -68,6 +72,7 @@ const register = async (req, res) => {
       "OWNER",
       "AGENT",
       "CARETAKER",
+      "SERVICE_PROVIDER",
     ];
 
     const userRole = allowedRoles.includes(role) ? role : "USER";
@@ -75,7 +80,7 @@ const register = async (req, res) => {
     const user = await prisma.user.create({
       data: {
         name,
-        email,
+        email: normalizedEmail,
         phone: phone || null,
         password: hashedPassword,
         role: userRole,
@@ -123,8 +128,10 @@ const login = async (req, res) => {
       });
     }
 
+    const normalizedEmail = String(email).trim().toLowerCase();
+
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (!user) {

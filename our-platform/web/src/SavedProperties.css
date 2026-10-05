@@ -1,0 +1,525 @@
+/* ==========================================
+   SAVED PROPERTIES PAGE
+========================================== */
+
+.saved-properties-page {
+  min-height: 100vh;
+  background: #f6f7f9;
+  color: #172033;
+  padding-bottom: 60px;
+}
+
+
+/* ==========================================
+   HEADER
+========================================== */
+
+.saved-properties-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 28px 6%;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.saved-header-content {
+  flex: 1;
+}
+
+.saved-page-label {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #64748b;
+}
+
+.saved-properties-header h1 {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+.saved-page-description {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 15px;
+}
+
+
+/* ==========================================
+   BACK BUTTON
+========================================== */
+
+.saved-back-button {
+  border: none;
+  background: #172033;
+  color: #ffffff;
+  padding: 11px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s ease;
+}
+
+.saved-back-button:hover {
+  opacity: 0.9;
+  transform: translateX(-2px);
+}
+
+
+/* ==========================================
+   SAVED COUNT
+========================================== */
+
+.saved-count {
+  min-width: 90px;
+  text-align: center;
+  padding: 12px 16px;
+  background: #f1f5f9;
+  border-radius: 12px;
+}
+
+.saved-count strong {
+  display: block;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.saved-count span {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+
+/* ==========================================
+   CONTENT
+========================================== */
+
+.saved-properties-content {
+  width: 88%;
+  max-width: 1400px;
+  margin: 40px auto 0;
+}
+
+
+/* ==========================================
+   PROPERTY GRID
+========================================== */
+
+.saved-properties-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(300px, 1fr)
+  );
+  gap: 26px;
+}
+
+
+/* ==========================================
+   PROPERTY CARD
+========================================== */
+
+.saved-property-card {
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow:
+    0 8px 24px rgba(
+      15,
+      23,
+      42,
+      0.06
+    );
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.saved-property-card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 14px 30px rgba(
+      15,
+      23,
+      42,
+      0.1
+    );
+}
+
+
+/* ==========================================
+   IMAGE
+========================================== */
+
+.saved-property-image {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+  background: #e2e8f0;
+}
+
+.saved-property-image img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.saved-property-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60px;
+  background: #e2e8f0;
+}
+
+
+/* ==========================================
+   PROPERTY TYPE
+========================================== */
+
+.saved-property-type {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  padding: 7px 11px;
+  background: #ffffff;
+  color: #172033;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow:
+    0 3px 10px rgba(
+      0,
+      0,
+      0,
+      0.12
+    );
+}
+
+
+/* ==========================================
+   SAVED BADGE
+========================================== */
+
+.saved-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  padding: 7px 11px;
+  background: #172033;
+  color: #ffffff;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+
+/* ==========================================
+   PROPERTY INFORMATION
+========================================== */
+
+.saved-property-info {
+  padding: 20px;
+}
+
+.saved-property-location {
+  margin: 0 0 8px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.saved-property-info h2 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.3;
+  color: #172033;
+}
+
+.saved-property-description {
+  margin: 10px 0 16px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+
+/* ==========================================
+   PROPERTY DETAILS
+========================================== */
+
+.saved-property-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.saved-property-details span {
+  padding: 7px 9px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  color: #475569;
+  font-size: 12px;
+}
+
+
+/* ==========================================
+   PRICE
+========================================== */
+
+.saved-property-price {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.saved-property-price strong {
+  font-size: 21px;
+  color: #172033;
+}
+
+.saved-property-price span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+
+/* ==========================================
+   OWNER
+========================================== */
+
+.saved-property-owner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 0;
+}
+
+.saved-owner-avatar {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #172033;
+  color: #ffffff;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+.saved-property-owner div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.saved-property-owner small {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.saved-property-owner strong {
+  color: #334155;
+  font-size: 13px;
+}
+
+
+/* ==========================================
+   ACTIONS
+========================================== */
+
+.saved-property-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.saved-view-button,
+.saved-remove-button {
+  flex: 1;
+  border: none;
+  padding: 11px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: 0.2s ease;
+}
+
+.saved-view-button {
+  background: #172033;
+  color: #ffffff;
+}
+
+.saved-view-button:hover {
+  opacity: 0.9;
+}
+
+.saved-remove-button {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.saved-remove-button:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.saved-remove-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+
+/* ==========================================
+   MESSAGE / EMPTY STATE
+========================================== */
+
+.saved-properties-message {
+  width: 90%;
+  max-width: 600px;
+  margin: 80px auto;
+  padding: 50px 30px;
+  text-align: center;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow:
+    0 8px 24px rgba(
+      15,
+      23,
+      42,
+      0.05
+    );
+}
+
+.saved-message-icon,
+.saved-loading-icon {
+  font-size: 50px;
+  margin-bottom: 15px;
+}
+
+.saved-properties-message h2 {
+  margin: 0 0 10px;
+  font-size: 24px;
+}
+
+.saved-properties-message p {
+  margin: 0 auto 24px;
+  max-width: 450px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+
+/* ==========================================
+   RETRY / BROWSE BUTTON
+========================================== */
+
+.saved-retry-button,
+.saved-browse-button {
+  border: none;
+  background: #172033;
+  color: #ffffff;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.saved-retry-button:hover,
+.saved-browse-button:hover {
+  opacity: 0.9;
+}
+
+
+/* ==========================================
+   ERROR
+========================================== */
+
+.saved-properties-message.error {
+  border-color: #fecaca;
+}
+
+
+/* ==========================================
+   RESPONSIVE
+========================================== */
+
+@media (max-width: 768px) {
+  .saved-properties-header {
+    flex-wrap: wrap;
+    padding: 22px 5%;
+  }
+
+  .saved-header-content {
+    order: 2;
+    width: 100%;
+  }
+
+  .saved-count {
+    margin-left: auto;
+  }
+
+  .saved-properties-header h1 {
+    font-size: 27px;
+  }
+
+  .saved-properties-content {
+    width: 90%;
+    margin-top: 28px;
+  }
+
+  .saved-properties-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .saved-properties-header {
+    gap: 12px;
+  }
+
+  .saved-back-button {
+    padding: 9px 13px;
+    font-size: 13px;
+  }
+
+  .saved-count {
+    min-width: 70px;
+    padding: 9px 10px;
+  }
+
+  .saved-count strong {
+    font-size: 20px;
+  }
+
+  .saved-properties-header h1 {
+    font-size: 24px;
+  }
+
+  .saved-property-image {
+    height: 200px;
+  }
+
+  .saved-property-actions {
+    flex-direction: column;
+  }
+}

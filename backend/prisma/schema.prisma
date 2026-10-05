@@ -17,14 +17,45 @@ enum UserRole {
   OWNER
   AGENT
   CARETAKER
+  SERVICE_PROVIDER
   ADMIN
+}
+
+enum ServiceRequestStatus {
+  REQUESTED
+  QUOTED
+  ACCEPTED
+  DECLINED
+  QUOTE_DECLINED
+  COMPLETED
+}
+
+enum ProviderVerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ServiceReportReason {
+  FRAUD
+  MISLEADING_INFO
+  UNSAFE
+  SPAM
+  OTHER
+}
+
+enum ServiceReportStatus {
+  PENDING
+  DISMISSED
+  ACTIONED
 }
 
 model User {
   id        String        @id @default(cuid())
   name      String
   email     String        @unique
-  phone     String?       @unique
+  phone     String?
   password  String
   role      UserRole      @default(USER)
   status    AccountStatus @default(ACTIVE)
@@ -32,24 +63,45 @@ model User {
   updatedAt DateTime      @updatedAt
 
   properties Property[]
+
+  likes           Like[]
+  savedProperties SavedProperty[]
+  comments        Comment[]
+  notifications   Notification[]
+  serviceProvider ServiceProvider?
+  customerServiceRequests ServiceRequest[] @relation("ServiceRequestCustomer")
+  customerServiceReviews ServiceReview[] @relation("ServiceReviewCustomer")
+  serviceReports ServiceReport[] @relation("ServiceReportReporter")
+  serviceMessages ServiceMessage[] @relation("ServiceMessageSender")
+  serviceBlocksMade ServiceBlock[] @relation("ServiceBlockBlocker")
+  serviceBlocksReceived ServiceBlock[] @relation("ServiceBlockBlocked")
 }
 
 model Property {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  location    String
-  price       Float
-  bedrooms    Int?
-  bathrooms   Int?
-  imageUrl    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+  location     String
+  propertyType String?
+  price        Float
+  bedrooms     Int?
+  bathrooms    Int?
+  parking      Int?
+  latitude     Float?
+  longitude    Float?
+  imageUrl     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   images PropertyImage[]
+  videos PropertyVideo[]
+
+  likes     Like[]
+  savedBy   SavedProperty[]
+  comments  Comment[]
 }
 
 model PropertyImage {
@@ -62,112 +114,205 @@ model PropertyImage {
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+model PropertyVideo {
+  id           String   @id @default(cuid())
+  url          String
+  mimeType     String
+  originalName String
+  createdAt    DateTime @default(now())
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, createdAt])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId     String
+  propertyId String
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId])
+  @@index([propertyId])
+  @@index([userId])
+}
+
+model SavedProperty {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId     String
+  propertyId String
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId])
+  @@index([propertyId])
+  @@index([userId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId     String
+  propertyId String
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@index([userId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  detail    String
+  type      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model ServiceProvider {
+  id            String   @id @default(cuid())
+  businessName  String
+  description   String
+  category      String
+  location      String
+  businessPhone String
+  verificationStatus ProviderVerificationStatus @default(UNVERIFIED)
+  verificationRequestedAt DateTime?
+  verifiedAt DateTime?
+  verificationNote String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  services OfferedService[]
+  requests ServiceRequest[]
+  reviews ServiceReview[]
+  reports ServiceReport[]
+
+  @@index([verificationStatus, verificationRequestedAt])
+}
+
+model OfferedService {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  price       Float
+  priceUnit   String   @default("per job")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  providerId String
+  provider   ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  requests ServiceRequest[]
+  reports ServiceReport[]
+
+  @@index([providerId, active])
+}
+
+model ServiceRequest {
+  id          String               @id @default(cuid())
+  details     String
+  location    String
+  status      ServiceRequestStatus @default(REQUESTED)
+  quotedPrice Float?
+  proposedAt  DateTime?
+  quoteNote   String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  customerId String
+  customer   User @relation("ServiceRequestCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  serviceId  String
+  service    OfferedService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  review    ServiceReview?
+  messages  ServiceMessage[]
+
+  @@index([customerId, createdAt])
+  @@index([providerId, status, createdAt])
+}
+
+model ServiceReview {
+  id         String   @id @default(cuid())
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  requestId  String         @unique
+  request    ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   User @relation("ServiceReviewCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, createdAt])
+}
+
+model ServiceReport {
+  id        String              @id @default(cuid())
+  reason    ServiceReportReason
+  details   String
+  status    ServiceReportStatus @default(PENDING)
+  adminNote String?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  reporterId String
+  reporter   User @relation("ServiceReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  serviceId  String
+  service    OfferedService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([providerId, status])
+}
+
+model ServiceMessage {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  requestId String
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User @relation("ServiceMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+}
+
+model ServiceBlock {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  blockerId     String
+  blockedUserId String
+
+  blocker     User @relation("ServiceBlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedUser User @relation("ServiceBlockBlocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedUserId])
+  @@index([blockedUserId, createdAt])
+}
