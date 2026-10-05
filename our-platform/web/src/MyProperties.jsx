@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { getMyProperties } from "./services/api";
+import {
+  getMyProperties,
+  updateProperty,
+  deleteProperty,
+} from "./services/api";
 import "./MyProperties.css";
 
 function MyProperties({
@@ -10,6 +14,11 @@ function MyProperties({
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const [editingProperty, setEditingProperty] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     const loadMyProperties = async () => {
@@ -43,6 +52,165 @@ function MyProperties({
 
     loadMyProperties();
   }, []);
+
+  const startEditing = (property) => {
+    setActionError("");
+
+    setEditingProperty(property);
+
+    setEditForm({
+      title: property.title || "",
+      description: property.description || "",
+      location: property.location || "",
+      propertyType: property.propertyType || "",
+      price: property.price ?? "",
+      bedrooms: property.bedrooms ?? "",
+      bathrooms: property.bathrooms ?? "",
+      parking: property.parking ?? "",
+      latitude: property.latitude ?? "",
+      longitude: property.longitude ?? "",
+      imageUrl: property.imageUrl || "",
+    });
+  };
+
+  const cancelEditing = () => {
+    if (actionLoading) {
+      return;
+    }
+
+    setEditingProperty(null);
+    setEditForm({});
+    setActionError("");
+  };
+
+  const handleEditChange = (event) => {
+    const { name, value } = event.target;
+
+    setEditForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleUpdate = async (event) => {
+    event.preventDefault();
+
+    if (!editingProperty) {
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setActionError("");
+
+      const token = localStorage.getItem("mtaa_token");
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const updatedData = {
+        ...editForm,
+        price:
+          editForm.price === ""
+            ? undefined
+            : Number(editForm.price),
+        bedrooms:
+          editForm.bedrooms === ""
+            ? undefined
+            : Number(editForm.bedrooms),
+        bathrooms:
+          editForm.bathrooms === ""
+            ? undefined
+            : Number(editForm.bathrooms),
+        parking:
+          editForm.parking === ""
+            ? undefined
+            : Number(editForm.parking),
+        latitude:
+          editForm.latitude === ""
+            ? undefined
+            : Number(editForm.latitude),
+        longitude:
+          editForm.longitude === ""
+            ? undefined
+            : Number(editForm.longitude),
+      };
+
+      const data = await updateProperty(
+        editingProperty.id,
+        updatedData,
+        token
+      );
+
+      const updatedProperty =
+        data?.property ||
+        data?.data ||
+        data?.updatedProperty;
+
+      setProperties((current) =>
+        current.map((property) =>
+          property.id === editingProperty.id
+            ? {
+                ...property,
+                ...(updatedProperty || updatedData),
+              }
+            : property
+        )
+      );
+
+      setEditingProperty(null);
+      setEditForm({});
+      setActionError("");
+    } catch (err) {
+      console.error("UPDATE PROPERTY ERROR:", err);
+
+      setActionError(
+        err.message ||
+          "Failed to update this property."
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async (property) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${property.title || property.name || "this property"}"? This action cannot be undone.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setActionError("");
+
+      const token = localStorage.getItem("mtaa_token");
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      await deleteProperty(property.id, token);
+
+      setProperties((current) =>
+        current.filter(
+          (item) => item.id !== property.id
+        )
+      );
+    } catch (err) {
+      console.error("DELETE PROPERTY ERROR:", err);
+
+      setActionError(
+        err.message ||
+          "Failed to delete this property."
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const getPropertyImage = (property) => {
     if (
@@ -160,6 +328,13 @@ function MyProperties({
           </section>
         )}
 
+        {actionError && (
+          <div className="my-properties-action-error">
+            <strong>Action failed</strong>
+            <p>{actionError}</p>
+          </div>
+        )}
+
         {!error && properties.length > 0 && (
           <section className="my-properties-grid">
             {properties.map((property) => {
@@ -229,17 +404,160 @@ function MyProperties({
                       </p>
                     )}
 
-                    <button
-                      type="button"
-                      className="my-property-view-button"
-                      onClick={() => {
-                        if (onOpenProperty) {
-                          onOpenProperty(property);
+                    {editingProperty?.id === property.id && (
+                      <form
+                        className="my-property-edit-form"
+                        onSubmit={handleUpdate}
+                      >
+                        <h3>Edit Property</h3>
+
+                        <label>
+                          Title
+                          <input
+                            type="text"
+                            name="title"
+                            value={editForm.title || ""}
+                            onChange={handleEditChange}
+                            required
+                          />
+                        </label>
+
+                        <label>
+                          Description
+                          <textarea
+                            name="description"
+                            value={editForm.description || ""}
+                            onChange={handleEditChange}
+                            rows="3"
+                          />
+                        </label>
+
+                        <label>
+                          Location
+                          <input
+                            type="text"
+                            name="location"
+                            value={editForm.location || ""}
+                            onChange={handleEditChange}
+                            required
+                          />
+                        </label>
+
+                        <label>
+                          Property Type
+                          <input
+                            type="text"
+                            name="propertyType"
+                            value={editForm.propertyType || ""}
+                            onChange={handleEditChange}
+                          />
+                        </label>
+
+                        <div className="my-property-edit-row">
+                          <label>
+                            Price
+                            <input
+                              type="number"
+                              name="price"
+                              value={editForm.price ?? ""}
+                              onChange={handleEditChange}
+                              min="0"
+                            />
+                          </label>
+
+                          <label>
+                            Bedrooms
+                            <input
+                              type="number"
+                              name="bedrooms"
+                              value={editForm.bedrooms ?? ""}
+                              onChange={handleEditChange}
+                              min="0"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="my-property-edit-row">
+                          <label>
+                            Bathrooms
+                            <input
+                              type="number"
+                              name="bathrooms"
+                              value={editForm.bathrooms ?? ""}
+                              onChange={handleEditChange}
+                              min="0"
+                            />
+                          </label>
+
+                          <label>
+                            Parking
+                            <input
+                              type="number"
+                              name="parking"
+                              value={editForm.parking ?? ""}
+                              onChange={handleEditChange}
+                              min="0"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="my-property-edit-actions">
+                          <button
+                            type="submit"
+                            className="my-property-save-button"
+                            disabled={actionLoading}
+                          >
+                            {actionLoading
+                              ? "Saving..."
+                              : "Save Changes"}
+                          </button>
+
+                          <button
+                            type="button"
+                            className="my-property-cancel-button"
+                            onClick={cancelEditing}
+                            disabled={actionLoading}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    )}
+
+                    <div className="my-property-actions">
+                      <button
+                        type="button"
+                        className="my-property-view-button"
+                        onClick={() => {
+                          if (onOpenProperty) {
+                            onOpenProperty(property);
+                          }
+                        }}
+                      >
+                        View Property
+                      </button>
+
+                      <button
+                        type="button"
+                        className="my-property-edit-button"
+                        onClick={() => startEditing(property)}
+                        disabled={
+                          actionLoading ||
+                          editingProperty !== null
                         }
-                      }}
-                    >
-                      View Property
-                    </button>
+                      >
+                        ✏️ Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        className="my-property-delete-button"
+                        onClick={() => handleDelete(property)}
+                        disabled={actionLoading}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
                   </div>
                 </article>
               );

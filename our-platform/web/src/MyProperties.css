@@ -324,3 +324,174 @@
     height: 220px;
   }
 }
+
+/* =====================================================
+   PROPERTY MANAGEMENT ACTIONS
+   ===================================================== */
+
+.my-property-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.my-property-actions button {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.my-property-actions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.my-property-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.my-property-edit-button {
+  background: #eef4ff;
+  color: #2457c5;
+}
+
+.my-property-delete-button {
+  background: #fff0f0;
+  color: #c62828;
+}
+
+.my-property-edit-form {
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px solid #e1e7ef;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.my-property-edit-form h3 {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+
+.my-property-edit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 13px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.my-property-edit-form input,
+.my-property-edit-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d5dce5;
+  border-radius: 9px;
+  padding: 10px 12px;
+  font: inherit;
+  background: #ffffff;
+  color: inherit;
+  outline: none;
+}
+
+.my-property-edit-form input:focus,
+.my-property-edit-form textarea:focus {
+  border-color: #2457c5;
+  box-shadow: 0 0 0 3px rgba(36, 87, 197, 0.1);
+}
+
+.my-property-edit-form textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.my-property-edit-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.my-property-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.my-property-save-button,
+.my-property-cancel-button {
+  border: 0;
+  border-radius: 9px;
+  padding: 10px 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.my-property-save-button {
+  background: #2457c5;
+  color: #ffffff;
+}
+
+.my-property-cancel-button {
+  background: #e8edf3;
+  color: #253247;
+}
+
+.my-property-save-button:disabled,
+.my-property-cancel-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.my-properties-action-error {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid #f0caca;
+  border-radius: 12px;
+  background: #fff5f5;
+  color: #9b2226;
+}
+
+.my-properties-action-error strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.my-properties-action-error p {
+  margin: 0;
+}
+
+/* =====================================================
+   PROPERTY MANAGEMENT MOBILE
+   ===================================================== */
+
+@media (max-width: 600px) {
+  .my-property-edit-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .my-property-actions,
+  .my-property-edit-actions {
+    flex-direction: column;
+  }
+
+  .my-property-actions button,
+  .my-property-save-button,
+  .my-property-cancel-button {
+    width: 100%;
+  }
+
+  .my-property-edit-form {
+    padding: 14px;
+  }
+}
