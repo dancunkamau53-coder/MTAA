@@ -5,7 +5,6 @@
 const API_URL =
   import.meta.env.VITE_API_URL || "/api";
 
-
 // =====================================================
 // MY PROPERTIES
 // =====================================================
@@ -23,7 +22,6 @@ export const getMyProperties = async (token) => {
 
   return handleResponse(response);
 };
-
 
 // =====================================================
 // RESPONSE HANDLER
@@ -73,7 +71,9 @@ export const loginUser = async (
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        email: String(payload.email || "").trim(),
+        email: String(
+          payload.email || ""
+        ).trim(),
         password: payload.password,
       }),
     }
@@ -109,7 +109,9 @@ export const registerUser = async (
       },
       body: JSON.stringify({
         name: payload.name,
-        email: String(payload.email || "").trim(),
+        email: String(
+          payload.email || ""
+        ).trim(),
         phone: payload.phone || "",
         password: payload.password,
         role: payload.role || "USER",
@@ -120,7 +122,9 @@ export const registerUser = async (
   return handleResponse(response);
 };
 
-export const getCurrentUser = async (token) => {
+export const getCurrentUser = async (
+  token
+) => {
   const response = await fetch(
     `${API_URL}/auth/me`,
     {
@@ -148,7 +152,10 @@ export const getUsers = async (token) => {
   return handleResponse(response);
 };
 
-export const updateCurrentUser = async (token, updates) => {
+export const updateCurrentUser = async (
+  token,
+  updates
+) => {
   const response = await fetch(
     `${API_URL}/users/me`,
     {
@@ -164,80 +171,189 @@ export const updateCurrentUser = async (token, updates) => {
   return handleResponse(response);
 };
 
-export const getNotifications = async (token) => {
-  const response = await fetch(`${API_URL}/notifications`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export const getNotifications = async (
+  token
+) => {
+  const response = await fetch(
+    `${API_URL}/notifications`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
 
   return handleResponse(response);
 };
 
-export const markNotificationRead = async (token, notificationId) => {
+export const markNotificationRead = async (
+  token,
+  notificationId
+) => {
   const response = await fetch(
     `${API_URL}/notifications/${notificationId}/read`,
     {
       method: "PATCH",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     }
   );
 
   return handleResponse(response);
 };
 
-export const markAllNotificationsRead = async (token) => {
-  const response = await fetch(`${API_URL}/notifications/read`, {
-    method: "PATCH",
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export const markAllNotificationsRead =
+  async (token) => {
+    const response = await fetch(
+      `${API_URL}/notifications/read`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
-export const getServices = async (filters = {}) => {
+export const getServices = async (
+  filters = {}
+) => {
   const params = new URLSearchParams();
 
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      params.append(key, value);
+  Object.entries(filters).forEach(
+    ([key, value]) => {
+      if (
+        value !== undefined &&
+        value !== null &&
+        value !== ""
+      ) {
+        params.append(key, value);
+      }
     }
-  });
+  );
 
   const query = params.toString();
+
   const response = await fetch(
-    `${API_URL}/services${query ? `?${query}` : ""}`
+    `${API_URL}/services${
+      query ? `?${query}` : ""
+    }`
   );
 
   return handleResponse(response);
 };
 
-export const getMyServiceProvider = async (token) => {
-  const response = await fetch(`${API_URL}/services/provider/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export const getMyServiceProvider =
+  async (token) => {
+    const response = await fetch(
+      `${API_URL}/services/provider/me`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
-export const requestProviderVerification = async (token) => {
-  const response = await fetch(`${API_URL}/services/provider/me/verification`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export const requestProviderVerification =
+  async (token) => {
+    const response = await fetch(
+      `${API_URL}/services/provider/me/verification`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
-export const getAdminProviderVerifications = async (token) => {
-  const response = await fetch(`${API_URL}/services/admin/verifications`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export const getAdminProviderVerifications =
+  async (token) => {
+    const response = await fetch(
+      `${API_URL}/services/admin/verifications`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
-export const decideProviderVerification = async (token, providerId, decision) => {
+export const decideProviderVerification =
+  async (
+    token,
+    providerId,
+    decision
+  ) => {
+    const response = await fetch(
+      `${API_URL}/services/admin/verifications/${encodeURIComponent(
+        providerId
+      )}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(decision),
+      }
+    );
+
+    return handleResponse(response);
+  };
+
+export const submitServiceReport = async (
+  token,
+  report
+) => {
   const response = await fetch(
-    `${API_URL}/services/admin/verifications/${encodeURIComponent(providerId)}`,
+    `${API_URL}/services/reports`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(report),
+    }
+  );
+
+  return handleResponse(response);
+};
+
+export const getAdminServiceReports =
+  async (token) => {
+    const response = await fetch(
+      `${API_URL}/services/admin/reports`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return handleResponse(response);
+  };
+
+export const decideServiceReport = async (
+  token,
+  reportId,
+  decision
+) => {
+  const response = await fetch(
+    `${API_URL}/services/admin/reports/${encodeURIComponent(
+      reportId
+    )}`,
     {
       method: "PATCH",
       headers: {
@@ -251,250 +367,339 @@ export const decideProviderVerification = async (token, providerId, decision) =>
   return handleResponse(response);
 };
 
-export const submitServiceReport = async (token, report) => {
-  const response = await fetch(`${API_URL}/services/reports`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(report),
-  });
+export const saveServiceProviderProfile =
+  async (
+    token,
+    profile,
+    method = "POST"
+  ) => {
+    const response = await fetch(
+      `${API_URL}/services/provider/me`,
+      {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(profile),
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
-export const getAdminServiceReports = async (token) => {
-  const response = await fetch(`${API_URL}/services/admin/reports`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  return handleResponse(response);
-};
-
-export const decideServiceReport = async (token, reportId, decision) => {
+export const createOfferedService = async (
+  token,
+  service
+) => {
   const response = await fetch(
-    `${API_URL}/services/admin/reports/${encodeURIComponent(reportId)}`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(decision),
-    }
-  );
-
-  return handleResponse(response);
-};
-
-export const saveServiceProviderProfile = async (token, profile, method = "POST") => {
-  const response = await fetch(`${API_URL}/services/provider/me`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(profile),
-  });
-
-  return handleResponse(response);
-};
-
-export const createOfferedService = async (token, service) => {
-  const response = await fetch(`${API_URL}/services/provider/me/services`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(service),
-  });
-
-  return handleResponse(response);
-};
-
-export const updateOfferedService = async (token, serviceId, updates) => {
-  const response = await fetch(
-    `${API_URL}/services/provider/me/services/${encodeURIComponent(serviceId)}`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(updates),
-    }
-  );
-
-  return handleResponse(response);
-};
-
-export const getMyServiceRequests = async (token) => {
-  const response = await fetch(`${API_URL}/services/requests/mine`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  return handleResponse(response);
-};
-
-export const createServiceRequest = async (token, request) => {
-  const response = await fetch(`${API_URL}/services/requests`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(request),
-  });
-
-  return handleResponse(response);
-};
-
-export const updateServiceRequestStatus = async (token, requestId, status) => {
-  const response = await fetch(
-    `${API_URL}/services/requests/${encodeURIComponent(requestId)}/status`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ status }),
-    }
-  );
-
-  return handleResponse(response);
-};
-
-export const submitServiceQuote = async (token, requestId, quote) => {
-  const response = await fetch(
-    `${API_URL}/services/requests/${encodeURIComponent(requestId)}/quote`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(quote),
-    }
-  );
-
-  return handleResponse(response);
-};
-
-export const decideServiceQuote = async (token, requestId, accept) => {
-  const response = await fetch(
-    `${API_URL}/services/requests/${encodeURIComponent(requestId)}/quote-decision`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ accept }),
-    }
-  );
-
-  return handleResponse(response);
-};
-
-export const createServiceReview = async (token, requestId, review) => {
-  const response = await fetch(
-    `${API_URL}/services/requests/${encodeURIComponent(requestId)}/review`,
+    `${API_URL}/services/provider/me/services`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(review),
+      body: JSON.stringify(service),
     }
   );
 
   return handleResponse(response);
 };
 
-export const getServiceMessages = async (token, requestId) => {
-  const response = await fetch(
-    `${API_URL}/services/requests/${encodeURIComponent(requestId)}/messages`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
+export const updateOfferedService =
+  async (
+    token,
+    serviceId,
+    updates
+  ) => {
+    const response = await fetch(
+      `${API_URL}/services/provider/me/services/${encodeURIComponent(
+        serviceId
+      )}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updates),
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
-export const sendServiceMessage = async (token, requestId, content) => {
-  const response = await fetch(
-    `${API_URL}/services/requests/${encodeURIComponent(requestId)}/messages`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ content }),
-    }
-  );
+export const getMyServiceRequests =
+  async (token) => {
+    const response = await fetch(
+      `${API_URL}/services/requests/mine`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
-export const blockServiceParticipant = async (token, requestId) => {
-  const response = await fetch(
-    `${API_URL}/services/requests/${encodeURIComponent(requestId)}/block`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    }
-  );
+export const createServiceRequest =
+  async (
+    token,
+    request
+  ) => {
+    const response = await fetch(
+      `${API_URL}/services/requests`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(request),
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
-export const unblockServiceParticipant = async (token, requestId) => {
-  const response = await fetch(
-    `${API_URL}/services/requests/${encodeURIComponent(requestId)}/block`,
-    {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    }
-  );
+export const updateServiceRequestStatus =
+  async (
+    token,
+    requestId,
+    status
+  ) => {
+    const response = await fetch(
+      `${API_URL}/services/requests/${encodeURIComponent(
+        requestId
+      )}/status`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          status,
+        }),
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
+
+export const submitServiceQuote =
+  async (
+    token,
+    requestId,
+    quote
+  ) => {
+    const response = await fetch(
+      `${API_URL}/services/requests/${encodeURIComponent(
+        requestId
+      )}/quote`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(quote),
+      }
+    );
+
+    return handleResponse(response);
+  };
+
+export const decideServiceQuote =
+  async (
+    token,
+    requestId,
+    accept
+  ) => {
+    const response = await fetch(
+      `${API_URL}/services/requests/${encodeURIComponent(
+        requestId
+      )}/quote-decision`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          accept,
+        }),
+      }
+    );
+
+    return handleResponse(response);
+  };
+
+export const createServiceReview =
+  async (
+    token,
+    requestId,
+    review
+  ) => {
+    const response = await fetch(
+      `${API_URL}/services/requests/${encodeURIComponent(
+        requestId
+      )}/review`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(review),
+      }
+    );
+
+    return handleResponse(response);
+  };
+
+export const getServiceMessages =
+  async (
+    token,
+    requestId
+  ) => {
+    const response = await fetch(
+      `${API_URL}/services/requests/${encodeURIComponent(
+        requestId
+      )}/messages`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return handleResponse(response);
+  };
+
+export const sendServiceMessage =
+  async (
+    token,
+    requestId,
+    content
+  ) => {
+    const response = await fetch(
+      `${API_URL}/services/requests/${encodeURIComponent(
+        requestId
+      )}/messages`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          content,
+        }),
+      }
+    );
+
+    return handleResponse(response);
+  };
+
+export const blockServiceParticipant =
+  async (
+    token,
+    requestId
+  ) => {
+    const response = await fetch(
+      `${API_URL}/services/requests/${encodeURIComponent(
+        requestId
+      )}/block`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return handleResponse(response);
+  };
+
+export const unblockServiceParticipant =
+  async (
+    token,
+    requestId
+  ) => {
+    const response = await fetch(
+      `${API_URL}/services/requests/${encodeURIComponent(
+        requestId
+      )}/block`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return handleResponse(response);
+  };
 
 // =====================================================
 // PROPERTIES
 // =====================================================
 
-export const getProperties = async (filters = {}) => {
+export const getProperties = async (
+  filters = {}
+) => {
   const params = new URLSearchParams();
 
-  Object.entries(filters).forEach(([key, value]) => {
-    if (
-      value !== undefined &&
-      value !== null &&
-      value !== ""
-    ) {
-      params.append(key, value);
+  Object.entries(filters).forEach(
+    ([key, value]) => {
+      if (
+        value !== undefined &&
+        value !== null &&
+        value !== ""
+      ) {
+        params.append(key, value);
+      }
     }
-  });
+  );
 
-  const queryString = params.toString();
+  const queryString =
+    params.toString();
 
   const url = queryString
     ? `${API_URL}/properties?${queryString}`
     : `${API_URL}/properties`;
 
-  const response = await fetch(url);
+  const response =
+    await fetch(url);
 
   return handleResponse(response);
 };
 
-export const getProperty = async (id) => {
+export const getProperty = async (
+  id
+) => {
   const response = await fetch(
     `${API_URL}/properties/${id}`
+  );
+
+  return handleResponse(response);
+};
+
+// =====================================================
+// NEARBY PLACES
+// =====================================================
+
+export const getNearbyPlaces = async (
+  propertyId
+) => {
+  const response = await fetch(
+    `${API_URL}/properties/${propertyId}/nearby-places`,
+    {
+      method: "GET",
+    }
   );
 
   return handleResponse(response);
@@ -504,7 +709,9 @@ export const getProperty = async (id) => {
 // SAVED PROPERTIES
 // =====================================================
 
-export const getSavedProperties = async (token) => {
+export const getSavedProperties = async (
+  token
+) => {
   const response = await fetch(
     `${API_URL}/properties/saved`,
     {
@@ -590,208 +797,241 @@ export const deleteProperty = async (
 // PROPERTY IMAGES
 // =====================================================
 
-export const uploadPropertyImage = async (
-  propertyId,
-  file,
-  token
-) => {
-  const formData = new FormData();
+export const uploadPropertyImage =
+  async (
+    propertyId,
+    file,
+    token
+  ) => {
+    const formData = new FormData();
 
-  formData.append("image", file);
+    formData.append(
+      "image",
+      file
+    );
 
-  const response = await fetch(
-    `${API_URL}/properties/${propertyId}/images`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    }
-  );
+    const response = await fetch(
+      `${API_URL}/properties/${propertyId}/images`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
-export const getPropertyImages = async (
-  propertyId
-) => {
-  const response = await fetch(
-    `${API_URL}/properties/${propertyId}/images`
-  );
+export const getPropertyImages =
+  async (propertyId) => {
+    const response = await fetch(
+      `${API_URL}/properties/${propertyId}/images`
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
-export const deletePropertyImage = async (
-  propertyId,
-  imageId,
-  token
-) => {
-  const response = await fetch(
-    `${API_URL}/properties/${propertyId}/images/${imageId}`,
-    {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
+export const deletePropertyImage =
+  async (
+    propertyId,
+    imageId,
+    token
+  ) => {
+    const response = await fetch(
+      `${API_URL}/properties/${propertyId}/images/${imageId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
-export const uploadPropertyVideo = async (propertyId, file, token) => {
-  const formData = new FormData();
-  formData.append("video", file);
+export const uploadPropertyVideo =
+  async (
+    propertyId,
+    file,
+    token
+  ) => {
+    const formData = new FormData();
 
-  const response = await fetch(`${API_URL}/properties/${propertyId}/videos`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: formData,
-  });
+    formData.append(
+      "video",
+      file
+    );
 
-  return handleResponse(response);
-};
+    const response = await fetch(
+      `${API_URL}/properties/${propertyId}/videos`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      }
+    );
 
-export const getPropertyVideos = async (propertyId) => {
-  const response = await fetch(`${API_URL}/properties/${propertyId}/videos`);
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
-export const deletePropertyVideo = async (propertyId, videoId, token) => {
-  const response = await fetch(
-    `${API_URL}/properties/${propertyId}/videos/${videoId}`,
-    {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    }
-  );
+export const getPropertyVideos =
+  async (propertyId) => {
+    const response = await fetch(
+      `${API_URL}/properties/${propertyId}/videos`
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
+
+export const deletePropertyVideo =
+  async (
+    propertyId,
+    videoId,
+    token
+  ) => {
+    const response = await fetch(
+      `${API_URL}/properties/${propertyId}/videos/${videoId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return handleResponse(response);
+  };
 
 // =====================================================
 // LIKE / UNLIKE
 // =====================================================
 
-export const togglePropertyLike = async (
-  propertyId,
-  token
-) => {
-  const response = await fetch(
-    `${API_URL}/properties/${propertyId}/like`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
+export const togglePropertyLike =
+  async (
+    propertyId,
+    token
+  ) => {
+    const response = await fetch(
+      `${API_URL}/properties/${propertyId}/like`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
 // =====================================================
 // SAVE / UNSAVE
 // =====================================================
 
-export const togglePropertySave = async (
-  propertyId,
-  token
-) => {
-  const response = await fetch(
-    `${API_URL}/properties/${propertyId}/save`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
+export const togglePropertySave =
+  async (
+    propertyId,
+    token
+  ) => {
+    const response = await fetch(
+      `${API_URL}/properties/${propertyId}/save`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
 // =====================================================
 // INTERACTION STATUS
 // =====================================================
 
-export const getPropertyInteractionStatus = async (
-  propertyId,
-  token
-) => {
-  const response = await fetch(
-    `${API_URL}/properties/${propertyId}/interaction-status`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
+export const getPropertyInteractionStatus =
+  async (
+    propertyId,
+    token
+  ) => {
+    const response = await fetch(
+      `${API_URL}/properties/${propertyId}/interaction-status`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
 // =====================================================
 // GET COMMENTS
 // =====================================================
 
-export const getPropertyComments = async (
-  propertyId
-) => {
-  const response = await fetch(
-    `${API_URL}/properties/${propertyId}/comments`
-  );
+export const getPropertyComments =
+  async (propertyId) => {
+    const response = await fetch(
+      `${API_URL}/properties/${propertyId}/comments`
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
 // =====================================================
 // ADD COMMENT
 // =====================================================
 
-export const addPropertyComment = async (
-  propertyId,
-  content,
-  token
-) => {
-  const response = await fetch(
-    `${API_URL}/properties/${propertyId}/comments`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        content,
-      }),
-    }
-  );
+export const addPropertyComment =
+  async (
+    propertyId,
+    content,
+    token
+  ) => {
+    const response = await fetch(
+      `${API_URL}/properties/${propertyId}/comments`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content,
+        }),
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };
 
 // =====================================================
 // DELETE COMMENT
 // =====================================================
 
-export const deletePropertyComment = async (
-  propertyId,
-  commentId,
-  token
-) => {
-  const response = await fetch(
-    `${API_URL}/properties/comments/${commentId}`,
-    {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
+export const deletePropertyComment =
+  async (
+    propertyId,
+    commentId,
+    token
+  ) => {
+    const response = await fetch(
+      `${API_URL}/properties/comments/${commentId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-  return handleResponse(response);
-};
+    return handleResponse(response);
+  };

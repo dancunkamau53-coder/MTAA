@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   getProperty,
+  getNearbyPlaces,
   togglePropertyLike,
   togglePropertySave,
   getPropertyInteractionStatus,
@@ -20,12 +21,15 @@ function PropertyDetails({
   propertyId,
   onBack,
 }) {
-  const [property, setProperty] = useState(null);
+  const [property, setProperty] =
+    useState(null);
 
   const [loading, setLoading] =
     useState(true);
 
-  const [error, setError] = useState("");
+  const [error, setError] =
+    useState("");
+
   const [selectedImage, setSelectedImage] =
     useState(0);
 
@@ -58,6 +62,19 @@ function PropertyDetails({
     useState("");
 
   // =====================================================
+  // NEARBY PLACES STATE
+  // =====================================================
+
+  const [nearbyPlaces, setNearbyPlaces] =
+    useState([]);
+
+  const [nearbyLoading, setNearbyLoading] =
+    useState(false);
+
+  const [nearbyError, setNearbyError] =
+    useState("");
+
+  // =====================================================
   // LOAD PROPERTY
   // =====================================================
 
@@ -66,9 +83,18 @@ function PropertyDetails({
       try {
         setLoading(true);
         setError("");
-        const data = await getProperty(propertyId);
-        const loadedProperty = data?.property || data?.data?.property || data;
-        setProperty(loadedProperty);
+
+        const data =
+          await getProperty(propertyId);
+
+        const loadedProperty =
+          data?.property ||
+          data?.data?.property ||
+          data;
+
+        setProperty(
+          loadedProperty
+        );
 
         setLikeCount(
           Number(
@@ -110,22 +136,51 @@ function PropertyDetails({
             "mtaa_token"
           );
 
-        if (!token || !propertyId) {
+        if (
+          !token ||
+          !propertyId
+        ) {
           return;
         }
 
         try {
-          const data = await getPropertyInteractionStatus(propertyId, token);
+          const data =
+            await getPropertyInteractionStatus(
+              propertyId,
+              token
+            );
 
-          setLiked(Boolean(data?.liked || data?.isLiked || data?.data?.liked || data?.data?.isLiked));
-          setSaved(Boolean(data?.saved || data?.isSaved || data?.data?.saved || data?.data?.isSaved));
+          setLiked(
+            Boolean(
+              data?.liked ||
+                data?.isLiked ||
+                data?.data?.liked ||
+                data?.data?.isLiked
+            )
+          );
+
+          setSaved(
+            Boolean(
+              data?.saved ||
+                data?.isSaved ||
+                data?.data?.saved ||
+                data?.data?.isSaved
+            )
+          );
 
           const count =
             data?.likesCount ??
             data?.likeCount ??
             data?.data?.likesCount ??
             data?.data?.likeCount;
-          if (count !== undefined) setLikeCount(Number(count));
+
+          if (
+            count !== undefined
+          ) {
+            setLikeCount(
+              Number(count)
+            );
+          }
         } catch (err) {
           console.error(
             "Failed to load interaction status:",
@@ -191,6 +246,68 @@ function PropertyDetails({
   }, [propertyId]);
 
   // =====================================================
+  // LOAD NEARBY PLACES
+  // =====================================================
+
+  useEffect(() => {
+    const loadNearbyPlaces =
+      async () => {
+        if (
+          !propertyId ||
+          property?.latitude === null ||
+          property?.latitude === undefined ||
+          property?.longitude === null ||
+          property?.longitude === undefined
+        ) {
+          setNearbyPlaces([]);
+          setNearbyLoading(false);
+          return;
+        }
+
+        try {
+          setNearbyLoading(true);
+          setNearbyError("");
+
+          const data =
+            await getNearbyPlaces(
+              propertyId
+            );
+
+          const places =
+            data?.places ||
+            data?.data?.places ||
+            [];
+
+          setNearbyPlaces(
+            Array.isArray(places)
+              ? places
+              : []
+          );
+        } catch (err) {
+          console.error(
+            "Failed to load nearby places:",
+            err
+          );
+
+          setNearbyError(
+            err.message ||
+              "Failed to load nearby places."
+          );
+
+          setNearbyPlaces([]);
+        } finally {
+          setNearbyLoading(false);
+        }
+      };
+
+    loadNearbyPlaces();
+  }, [
+    propertyId,
+    property?.latitude,
+    property?.longitude,
+  ]);
+
+  // =====================================================
   // IMAGE URL
   // =====================================================
 
@@ -238,18 +355,34 @@ function PropertyDetails({
         : [];
 
   const galleryItems = [
-    ...propertyImages.map((image) => ({ type: "image", media: image })),
-    ...(property?.videos || []).map((video) => ({ type: "video", media: video })),
+    ...propertyImages.map(
+      (image) => ({
+        type: "image",
+        media: image,
+      })
+    ),
+
+    ...(property?.videos || []).map(
+      (video) => ({
+        type: "video",
+        media: video,
+      })
+    ),
   ];
 
-  if (galleryItems.length === 0) {
+  if (
+    galleryItems.length === 0
+  ) {
     galleryItems.push({
       type: "image",
-      media: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1400&q=80",
+      media:
+        "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1400&q=80",
     });
   }
 
-  const selectedMedia = galleryItems[selectedImage] || galleryItems[0];
+  const selectedMedia =
+    galleryItems[selectedImage] ||
+    galleryItems[0];
 
   // =====================================================
   // IMAGE NAVIGATION
@@ -266,7 +399,9 @@ function PropertyDetails({
   const previousImage = () => {
     setSelectedImage(
       (current) =>
-        (current - 1 + galleryItems.length) %
+        (current -
+          1 +
+          galleryItems.length) %
         galleryItems.length
     );
   };
@@ -753,11 +888,13 @@ function PropertyDetails({
   if (loading) {
     return (
       <div className="property-details-loading">
+
         <div className="loading-spinner"></div>
 
         <p>
           Loading property...
         </p>
+
       </div>
     );
   }
@@ -766,9 +903,13 @@ function PropertyDetails({
   // ERROR
   // =====================================================
 
-  if (error || !property) {
+  if (
+    error ||
+    !property
+  ) {
     return (
       <div className="property-details-error">
+
         <div className="error-icon">
           ⚠️
         </div>
@@ -788,69 +929,10 @@ function PropertyDetails({
         >
           ← Go Back
         </button>
+
       </div>
     );
   }
-
-  // =====================================================
-  // NEARBY SERVICES
-  // =====================================================
-
-  const nearbyServices = useMemo(() => {
-    const source = `${
-      property?.location || ""
-    } ${property?.propertyType || ""}`;
-
-    let seed = 0;
-
-    for (const char of source) {
-      seed += char.charCodeAt(0);
-    }
-
-    const services = [
-      {
-        label: "Hospital",
-        icon: "🏥",
-        detail: "Medical care",
-        offset: 140,
-      },
-      {
-        label: "School",
-        icon: "🏫",
-        detail: "Education access",
-        offset: 240,
-      },
-      {
-        label: "Shopping",
-        icon: "🛒",
-        detail: "Daily essentials",
-        offset: 95,
-      },
-      {
-        label: "Transport",
-        icon: "🚌",
-        detail: "Public transit",
-        offset: 70,
-      },
-    ];
-
-    return services.map((service, index) => {
-      const distance =
-        220 +
-        ((seed + index * 93) % 1800) +
-        service.offset;
-
-      return {
-        ...service,
-        distance,
-        unit: distance >= 1000 ? "km" : "m",
-        value:
-          distance >= 1000
-            ? (distance / 1000).toFixed(1)
-            : distance,
-      };
-    });
-  }, [property?.location, property?.propertyType]);
 
   // =====================================================
   // OWNER
@@ -872,6 +954,7 @@ function PropertyDetails({
     <div className="property-details-page">
 
       {/* HEADER */}
+
       <header className="property-details-header">
 
         <button
@@ -882,6 +965,7 @@ function PropertyDetails({
         </button>
 
         <div className="header-brand">
+
           <strong>
             MTAA
           </strong>
@@ -889,22 +973,28 @@ function PropertyDetails({
           <span>
             Property Details
           </span>
+
         </div>
 
       </header>
 
       {/* MAIN */}
+
       <main className="property-details-container">
 
         {/* GALLERY */}
+
         <section className="property-gallery">
 
           <div className="property-main-image">
 
-            {selectedMedia.type === "video" ? (
+            {selectedMedia.type ===
+            "video" ? (
               <video
                 className="property-gallery-video"
-                src={getImageUrl(selectedMedia.media.url)}
+                src={getImageUrl(
+                  selectedMedia.media.url
+                )}
                 controls
                 playsInline
                 preload="metadata"
@@ -912,20 +1002,28 @@ function PropertyDetails({
               />
             ) : (
               <img
-                src={getImageUrl(selectedMedia.media)}
-                alt={property.title || "Property"}
+                src={getImageUrl(
+                  selectedMedia.media
+                )}
+                alt={
+                  property.title ||
+                  "Property"
+                }
               />
             )}
 
             <div className="property-image-badge">
+
               🏠{" "}
               {property.propertyType ||
                 "Property"}
+
             </div>
 
             {galleryItems.length >
               1 && (
               <>
+
                 <button
                   className="gallery-arrow gallery-arrow-left"
                   onClick={
@@ -947,11 +1045,14 @@ function PropertyDetails({
                 </button>
 
                 <div className="property-image-count">
+
                   {selectedImage +
                     1}{" "}
                   /{" "}
                   {galleryItems.length}
+
                 </div>
+
               </>
             )}
 
@@ -961,7 +1062,11 @@ function PropertyDetails({
             1 && (
             <div className="property-thumbnails">
 
-              {galleryItems.map((item, index) => (
+              {galleryItems.map(
+                (
+                  item,
+                  index
+                ) => (
                   <button
                     key={
                       item.media?.id ||
@@ -980,19 +1085,34 @@ function PropertyDetails({
                       )
                     }
                   >
-                    {item.type === "video" ? (
+
+                    {item.type ===
+                    "video" ? (
                       <span className="property-video-thumbnail">
-                        <strong aria-hidden="true">▶</strong>
-                        <small>Video tour</small>
+
+                        <strong aria-hidden="true">
+                          ▶
+                        </strong>
+
+                        <small>
+                          Video tour
+                        </small>
+
                       </span>
                     ) : (
                       <img
-                        src={getImageUrl(item.media)}
-                        alt={`Property photo ${index + 1}`}
+                        src={getImageUrl(
+                          item.media
+                        )}
+                        alt={`Property photo ${
+                          index + 1
+                        }`}
                       />
                     )}
+
                   </button>
-              ))}
+                )
+              )}
 
             </div>
           )}
@@ -1000,6 +1120,7 @@ function PropertyDetails({
         </section>
 
         {/* PROPERTY INFORMATION */}
+
         <section className="property-information">
 
           <div className="property-title-section">
@@ -1007,8 +1128,10 @@ function PropertyDetails({
             <div>
 
               <span className="property-type-label">
+
                 {property.propertyType ||
                   "PROPERTY"}
+
               </span>
 
               <h1>
@@ -1016,8 +1139,10 @@ function PropertyDetails({
               </h1>
 
               <p className="property-location">
+
                 📍{" "}
                 {property.location}
+
               </p>
 
             </div>
@@ -1025,11 +1150,13 @@ function PropertyDetails({
             <div className="property-price">
 
               <strong>
+
                 KSh{" "}
                 {Number(
                   property.price ||
                     0
                 ).toLocaleString()}
+
               </strong>
 
               <span>
@@ -1041,9 +1168,11 @@ function PropertyDetails({
           </div>
 
           {/* FEATURES */}
+
           <div className="property-features">
 
             <div className="feature-box">
+
               <span>
                 🛏️
               </span>
@@ -1056,9 +1185,11 @@ function PropertyDetails({
               <small>
                 Bedrooms
               </small>
+
             </div>
 
             <div className="feature-box">
+
               <span>
                 🚿
               </span>
@@ -1071,9 +1202,11 @@ function PropertyDetails({
               <small>
                 Bathrooms
               </small>
+
             </div>
 
             <div className="feature-box">
+
               <span>
                 🚗
               </span>
@@ -1086,11 +1219,13 @@ function PropertyDetails({
               <small>
                 Parking
               </small>
+
             </div>
 
           </div>
 
           {/* DESCRIPTION */}
+
           <section className="details-section">
 
             <h2>
@@ -1098,13 +1233,16 @@ function PropertyDetails({
             </h2>
 
             <p>
+
               {property.description ||
                 "No description has been provided for this property yet."}
+
             </p>
 
           </section>
 
           {/* LOCATION */}
+
           <section className="details-section">
 
             <h2>
@@ -1126,14 +1264,19 @@ function PropertyDetails({
                 property.longitude !==
                   undefined && (
                   <p>
+
                     Coordinates:{" "}
+
                     {
                       property.latitude
                     }
+
                     ,{" "}
+
                     {
                       property.longitude
                     }
+
                   </p>
                 )}
 
@@ -1141,42 +1284,151 @@ function PropertyDetails({
 
           </section>
 
-          {/* NEARBY SERVICES */}
+          {/* =================================================
+              NEARBY SERVICES
+          ================================================= */}
+
           <section className="details-section">
 
             <h2>
               🧭 Nearby Services
             </h2>
 
-            <div className="nearby-services-grid">
-              {nearbyServices.map((service) => (
-                <div
-                  className="nearby-service-card"
-                  key={service.label}
-                >
+            {/* LOADING */}
+
+            {nearbyLoading && (
+              <div className="nearby-services-grid">
+
+                <div className="nearby-service-card">
+
                   <div className="nearby-service-icon">
-                    {service.icon}
+                    📍
                   </div>
 
                   <div className="nearby-service-body">
-                    <strong>{service.label}</strong>
-                    <span>{service.detail}</span>
+
+                    <strong>
+                      Finding nearby places...
+                    </strong>
+
+                    <span>
+                      Checking real locations around this property
+                    </span>
+
                   </div>
 
-                  <div className="nearby-service-distance">
-                    <strong>
-                      {service.value}
-                      {service.unit}
-                    </strong>
-                    <small>away</small>
-                  </div>
                 </div>
-              ))}
-            </div>
+
+              </div>
+            )}
+
+            {/* ERROR */}
+
+            {!nearbyLoading &&
+              nearbyError && (
+                <div className="nearby-service-card">
+
+                  <div className="nearby-service-icon">
+                    ⚠️
+                  </div>
+
+                  <div className="nearby-service-body">
+
+                    <strong>
+                      Nearby places unavailable
+                    </strong>
+
+                    <span>
+                      {nearbyError}
+                    </span>
+
+                  </div>
+
+                </div>
+              )}
+
+            {/* NO RESULTS */}
+
+            {!nearbyLoading &&
+              !nearbyError &&
+              nearbyPlaces.length ===
+                0 && (
+                <div className="nearby-service-card">
+
+                  <div className="nearby-service-icon">
+                    📍
+                  </div>
+
+                  <div className="nearby-service-body">
+
+                    <strong>
+                      No nearby places found
+                    </strong>
+
+                    <span>
+                      This property may not have GPS coordinates or nearby services have not been mapped yet.
+                    </span>
+
+                  </div>
+
+                </div>
+              )}
+
+            {/* REAL PLACES */}
+
+            {!nearbyLoading &&
+              !nearbyError &&
+              nearbyPlaces.length >
+                0 && (
+                <div className="nearby-services-grid">
+
+                  {nearbyPlaces.map(
+                    (place) => (
+                      <div
+                        className="nearby-service-card"
+                        key={place.id}
+                      >
+
+                        <div className="nearby-service-icon">
+                          {place.icon}
+                        </div>
+
+                        <div className="nearby-service-body">
+
+                          <strong>
+                            {place.name}
+                          </strong>
+
+                          <span>
+                            {place.detail}
+                          </span>
+
+                        </div>
+
+                        <div className="nearby-service-distance">
+
+                          <strong>
+                            {place.value}
+                            {place.unit}
+                          </strong>
+
+                          <small>
+                            away
+                          </small>
+
+                        </div>
+
+                      </div>
+                    )
+                  )}
+
+                </div>
+              )}
 
           </section>
 
           {/* OWNER */}
+
           <section className="details-section">
 
             <h2>
@@ -1186,9 +1438,11 @@ function PropertyDetails({
             <div className="owner-card">
 
               <div className="owner-avatar">
+
                 {ownerName
                   .charAt(0)
                   .toUpperCase()}
+
               </div>
 
               <div className="owner-information">
@@ -1204,22 +1458,26 @@ function PropertyDetails({
                 {property.owner
                   ?.email && (
                   <small>
+
                     ✉️{" "}
                     {
                       property.owner
                         .email
                     }
+
                   </small>
                 )}
 
                 {property.owner
                   ?.phone && (
                   <small>
+
                     📞{" "}
                     {
                       property.owner
                         .phone
                     }
+
                   </small>
                 )}
 
@@ -1230,6 +1488,7 @@ function PropertyDetails({
           </section>
 
           {/* ACTIONS */}
+
           <section className="property-actions">
 
             <button
@@ -1268,15 +1527,19 @@ function PropertyDetails({
                 handleLike
               }
             >
+
               {liked
                 ? "❤️"
                 : "🤍"}{" "}
+
               Like
+
               {likeCount >
                 0 &&
                 " (" +
                   likeCount +
                   ")"}
+
             </button>
 
             <button
@@ -1299,6 +1562,7 @@ function PropertyDetails({
             <div className="comments-header">
 
               <div>
+
                 <h2>
                   💬 Comments
                 </h2>
@@ -1306,14 +1570,18 @@ function PropertyDetails({
                 <p>
                   Share your thoughts or ask about this property.
                 </p>
+
               </div>
 
               <span className="comments-count">
+
                 {comments.length}{" "}
+
                 {comments.length ===
                 1
                   ? "Comment"
                   : "Comments"}
+
               </span>
 
             </div>
@@ -1347,10 +1615,12 @@ function PropertyDetails({
               <div className="comment-form-footer">
 
                 <span>
+
                   {
                     commentText.length
                   }
                   /500
+
                 </span>
 
                 <button
@@ -1360,9 +1630,11 @@ function PropertyDetails({
                     !commentText.trim()
                   }
                 >
+
                   {commentSubmitting
                     ? "Posting..."
                     : "Post Comment"}
+
                 </button>
 
               </div>
@@ -1442,11 +1714,13 @@ function PropertyDetails({
                       >
 
                         <div className="comment-avatar">
+
                           {userName
                             .charAt(
                               0
                             )
                             .toUpperCase()}
+
                         </div>
 
                         <div className="comment-content">
@@ -1494,9 +1768,11 @@ function PropertyDetails({
 
                           {commentDate && (
                             <small className="comment-date">
+
                               {formatCommentDate(
                                 commentDate
                               )}
+
                             </small>
                           )}
 
