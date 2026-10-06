@@ -169,6 +169,68 @@ function Dashboard({
   }, [user?.id]);
 
   // -----------------------------------------
+  // USE MY LOCATION
+  // -----------------------------------------
+
+  const handleUseMyLocation = () => {
+    setMessage("");
+    setError("");
+
+    if (!navigator.geolocation) {
+      setError(
+        "Location services are not supported by this browser."
+      );
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const latitude =
+          position.coords.latitude;
+        const longitude =
+          position.coords.longitude;
+
+        setForm((previous) => ({
+          ...previous,
+          latitude: latitude.toFixed(6),
+          longitude: longitude.toFixed(6),
+        }));
+
+        setMessage(
+          "Location detected successfully."
+        );
+      },
+      (locationError) => {
+        console.error(
+          "LOCATION ERROR:",
+          locationError
+        );
+
+        let message =
+          "Unable to get your location.";
+
+        if (locationError.code === 1) {
+          message =
+            "Location permission was denied. Please allow location access and try again.";
+        } else if (locationError.code === 2) {
+          message =
+            "Your location could not be determined. Please try again.";
+        } else if (locationError.code === 3) {
+          message =
+            "Location request timed out. Please try again.";
+        }
+
+        setError(message);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  };
+
+  // -----------------------------------------
   // FORM CHANGE
   // -----------------------------------------
 
@@ -1528,6 +1590,21 @@ function Dashboard({
               }
               required
             />
+
+            <button
+              type="button"
+              className="location-button"
+              onClick={
+                handleUseMyLocation
+              }
+            >
+              📍 Use My Location
+            </button>
+
+            <small>
+              Automatically fill the property's
+              latitude and longitude.
+            </small>
           </div>
 
           <div className="form-row">

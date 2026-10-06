@@ -19,9 +19,6 @@ const createProperty = async (req, res) => {
       imageUrl,
     } = req.body;
 
-    // -----------------------------------------
-    // VALIDATION
-    // -----------------------------------------
     if (!title || !title.trim()) {
       return res.status(400).json({
         success: false,
@@ -56,9 +53,6 @@ const createProperty = async (req, res) => {
       });
     }
 
-    // -----------------------------------------
-    // OPTIONAL NUMERIC VALUES
-    // -----------------------------------------
     const numericBedrooms =
       bedrooms !== undefined &&
       bedrooms !== null &&
@@ -94,9 +88,6 @@ const createProperty = async (req, res) => {
         ? Number(longitude)
         : null;
 
-    // -----------------------------------------
-    // NUMBER VALIDATION
-    // -----------------------------------------
     if (
       numericBedrooms !== null &&
       !Number.isInteger(numericBedrooms)
@@ -147,9 +138,6 @@ const createProperty = async (req, res) => {
       });
     }
 
-    // -----------------------------------------
-    // CHECK AUTHENTICATED USER
-    // -----------------------------------------
     const ownerId =
       req.user?.id ||
       req.user?.userId;
@@ -161,63 +149,64 @@ const createProperty = async (req, res) => {
       });
     }
 
-    // -----------------------------------------
-    // CREATE PROPERTY
-    // -----------------------------------------
-    const property = await prisma.property.create({
-      data: {
-        title: title.trim(),
+    const property =
+      await prisma.property.create({
+        data: {
+          title: title.trim(),
 
-        description:
-          description && description.trim()
-            ? description.trim()
-            : null,
+          description:
+            description &&
+            description.trim()
+              ? description.trim()
+              : null,
 
-        location: location.trim(),
+          location: location.trim(),
 
-        propertyType:
-          propertyType && propertyType.trim()
-            ? propertyType.trim()
-            : null,
+          propertyType:
+            propertyType &&
+            propertyType.trim()
+              ? propertyType.trim()
+              : null,
 
-        price: numericPrice,
+          price: numericPrice,
 
-        bedrooms: numericBedrooms,
+          bedrooms: numericBedrooms,
 
-        bathrooms: numericBathrooms,
+          bathrooms: numericBathrooms,
 
-        parking: numericParking,
+          parking: numericParking,
 
-        latitude: numericLatitude,
+          latitude: numericLatitude,
 
-        longitude: numericLongitude,
+          longitude: numericLongitude,
 
-        imageUrl:
-          imageUrl && imageUrl.trim()
-            ? imageUrl.trim()
-            : null,
+          imageUrl:
+            imageUrl &&
+            imageUrl.trim()
+              ? imageUrl.trim()
+              : null,
 
-        owner: {
-          connect: {
-            id: ownerId,
-          },
-        },
-      },
-
-      include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            role: true,
+          owner: {
+            connect: {
+              id: ownerId,
+            },
           },
         },
 
-        images: true,
-      },
-    });
+        include: {
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              role: true,
+            },
+          },
+
+          images: true,
+        },
+      });
 
     return res.status(201).json({
       success: true,
@@ -233,10 +222,8 @@ const createProperty = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to create property.",
-      error:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
+      error: error.message,
+      code: error.code || null,
     });
   }
 };
@@ -268,6 +255,7 @@ const getProperties = async (req, res) => {
               createdAt: "asc",
             },
           },
+
           videos: {
             orderBy: {
               createdAt: "asc",
@@ -289,10 +277,8 @@ const getProperties = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch properties.",
-      error:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
+      error: error.message,
+      code: error.code || null,
     });
   }
 };
@@ -300,7 +286,10 @@ const getProperties = async (req, res) => {
 // =====================================================
 // GET SINGLE PROPERTY
 // =====================================================
-const getPropertyById = async (req, res) => {
+const getPropertyById = async (
+  req,
+  res
+) => {
   try {
     const { id } = req.params;
 
@@ -365,10 +354,8 @@ const getPropertyById = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch property.",
-      error:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
+      error: error.message,
+      code: error.code || null,
     });
   }
 };
@@ -376,7 +363,10 @@ const getPropertyById = async (req, res) => {
 // =====================================================
 // UPDATE PROPERTY
 // =====================================================
-const updateProperty = async (req, res) => {
+const updateProperty = async (
+  req,
+  res
+) => {
   try {
     const { id } = req.params;
 
@@ -405,9 +395,6 @@ const updateProperty = async (req, res) => {
       });
     }
 
-    // -----------------------------------------
-    // FIND PROPERTY
-    // -----------------------------------------
     const existingProperty =
       await prisma.property.findUnique({
         where: {
@@ -422,10 +409,10 @@ const updateProperty = async (req, res) => {
       });
     }
 
-    // -----------------------------------------
-    // OWNERSHIP CHECK
-    // -----------------------------------------
-    if (existingProperty.ownerId !== ownerId) {
+    if (
+      existingProperty.ownerId !==
+      ownerId
+    ) {
       return res.status(403).json({
         success: false,
         message:
@@ -433,16 +420,14 @@ const updateProperty = async (req, res) => {
       });
     }
 
-    // -----------------------------------------
-    // BUILD UPDATE DATA
-    // -----------------------------------------
     const updateData = {};
 
     if (title !== undefined) {
       if (!String(title).trim()) {
         return res.status(400).json({
           success: false,
-          message: "Property title cannot be empty.",
+          message:
+            "Property title cannot be empty.",
         });
       }
 
@@ -483,7 +468,8 @@ const updateProperty = async (req, res) => {
       if (price === "") {
         return res.status(400).json({
           success: false,
-          message: "Property price is required.",
+          message:
+            "Property price is required.",
         });
       }
 
@@ -491,7 +477,9 @@ const updateProperty = async (req, res) => {
         Number(price);
 
       if (
-        !Number.isFinite(numericPrice)
+        !Number.isFinite(
+          numericPrice
+        )
       ) {
         return res.status(400).json({
           success: false,
@@ -632,9 +620,6 @@ const updateProperty = async (req, res) => {
           : null;
     }
 
-    // -----------------------------------------
-    // UPDATE PROPERTY
-    // -----------------------------------------
     const property =
       await prisma.property.update({
         where: {
@@ -660,7 +645,8 @@ const updateProperty = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Property updated successfully.",
+      message:
+        "Property updated successfully.",
       property,
     });
   } catch (error) {
@@ -671,11 +657,10 @@ const updateProperty = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to update property.",
-      error:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
+      message:
+        "Failed to update property.",
+      error: error.message,
+      code: error.code || null,
     });
   }
 };
@@ -683,7 +668,10 @@ const updateProperty = async (req, res) => {
 // =====================================================
 // DELETE PROPERTY
 // =====================================================
-const deleteProperty = async (req, res) => {
+const deleteProperty = async (
+  req,
+  res
+) => {
   try {
     const { id } = req.params;
 
@@ -712,7 +700,9 @@ const deleteProperty = async (req, res) => {
       });
     }
 
-    if (property.ownerId !== ownerId) {
+    if (
+      property.ownerId !== ownerId
+    ) {
       return res.status(403).json({
         success: false,
         message:
@@ -728,7 +718,8 @@ const deleteProperty = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Property deleted successfully.",
+      message:
+        "Property deleted successfully.",
     });
   } catch (error) {
     console.error(
@@ -738,11 +729,10 @@ const deleteProperty = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to delete property.",
-      error:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
+      message:
+        "Failed to delete property.",
+      error: error.message,
+      code: error.code || null,
     });
   }
 };
@@ -750,7 +740,10 @@ const deleteProperty = async (req, res) => {
 // =====================================================
 // GET MY PROPERTIES
 // =====================================================
-const getMyProperties = async (req, res) => {
+const getMyProperties = async (
+  req,
+  res
+) => {
   try {
     const ownerId =
       req.user?.id ||
@@ -768,9 +761,11 @@ const getMyProperties = async (req, res) => {
         where: {
           ownerId,
         },
+
         orderBy: {
           createdAt: "desc",
         },
+
         include: {
           owner: {
             select: {
@@ -781,11 +776,13 @@ const getMyProperties = async (req, res) => {
               role: true,
             },
           },
+
           images: {
             orderBy: {
               createdAt: "asc",
             },
           },
+
           videos: {
             orderBy: {
               createdAt: "asc",
@@ -806,11 +803,10 @@ const getMyProperties = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch your properties.",
-      error:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
+      message:
+        "Failed to fetch your properties.",
+      error: error.message,
+      code: error.code || null,
     });
   }
 };

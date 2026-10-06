@@ -786,3 +786,43 @@
     align-items: flex-start;
   }
 }
+
+/* =====================================================
+   MTAA SMART LOCATION BUTTON
+   ===================================================== */
+
+.location-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 9px;
+  padding: 10px 15px;
+  border: 1px solid #d5dce5;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #2457c5;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.location-button:hover {
+  background: #eef4ff;
+  border-color: #2457c5;
+  transform: translateY(-1px);
+}
+
+.location-button:active {
+  transform: translateY(0);
+}
+
+.location-button:focus-visible {
+  outline: 3px solid rgba(36, 87, 197, 0.18);
+  outline-offset: 2px;
+}
+
