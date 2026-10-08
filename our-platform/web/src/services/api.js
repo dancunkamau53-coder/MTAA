@@ -1035,3 +1035,85 @@ export const deletePropertyComment =
 
     return handleResponse(response);
   };
+
+export const getPropertyReviews = async (propertyId, token) => {
+  const response = await fetch(
+    `${API_URL}/properties/${propertyId}/reviews`,
+    {
+      method: "GET",
+      headers: token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : {},
+    }
+  );
+
+  return handleResponse(response);
+};
+
+export const createReview = async (
+  propertyId,
+  rating,
+  comment,
+  token
+) => {
+  const response = await fetch(
+    `${API_URL}/reviews`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        propertyId,
+        rating,
+        comment,
+      }),
+    }
+  );
+
+  return handleResponse(response);
+};
+
+export const updateReview = async (
+  reviewId,
+  rating,
+  comment,
+  token
+) => {
+  const response = await fetch(
+    `${API_URL}/reviews/${reviewId}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        rating,
+        comment,
+      }),
+    }
+  );
+
+  return handleResponse(response);
+};
+
+export const deleteReview = async (
+  reviewId,
+  token
+) => {
+  const response = await fetch(
+    `${API_URL}/reviews/${reviewId}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return handleResponse(response);
+};

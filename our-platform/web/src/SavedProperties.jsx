@@ -6,17 +6,10 @@ import {
 import "./SavedProperties.css";
 
 const API_ORIGIN =
-  import.meta.env.VITE_API_ORIGIN ||
-  window.location.origin;
-
-// =====================================================
-// IMAGE URL HELPER
-// =====================================================
+  import.meta.env.VITE_API_ORIGIN || window.location.origin;
 
 function getImageUrl(url) {
-  if (!url) {
-    return null;
-  }
+  if (!url) return null;
 
   if (
     url.startsWith("http://") ||
@@ -32,609 +25,340 @@ function getImageUrl(url) {
   return API_ORIGIN + "/" + url;
 }
 
-// =====================================================
-// SAVED PROPERTIES
-// =====================================================
+function formatPrice(price) {
+  if (price === null || price === undefined || price === "") {
+    return "Price on request";
+  }
 
-function SavedProperties({
+  const number = Number(price);
+
+  if (Number.isNaN(number)) {
+    return String(price);
+  }
+
+  return "KSh " + number.toLocaleString();
+}
+
+function getPropertyImage(property) {
+  if (!property) return null;
+
+  const images = Array.isArray(property.images)
+    ? property.images
+    : [];
+
+  const firstImage = images.length > 0 ? images[0] : null;
+
+  if (typeof firstImage === "string") {
+    return getImageUrl(firstImage);
+  }
+
+  if (firstImage?.url) {
+    return getImageUrl(firstImage.url);
+  }
+
+  if (property.image) {
+    return getImageUrl(property.image);
+  }
+
+  if (property.coverImage) {
+    return getImageUrl(property.coverImage);
+  }
+
+  return null;
+}
+
+export default function SavedProperties({
+  user,
   onBack,
   onViewProperty,
+  onRequireAuth,
 }) {
-  const [savedProperties, setSavedProperties] =
-    useState([]);
+  const [properties, setProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [removingId, setRemovingId] = useState("");
+  const [error, setError] = useState("");
 
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
-
-  const [removingId, setRemovingId] =
-    useState(null);
-
-  // ===================================================
-  // LOAD SAVED PROPERTIES
-  // ===================================================
-
-  const loadSavedProperties = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const token =
-        localStorage.getItem("mtaa_token");
-
-      if (!token) {
-        throw new Error(
-          "Please log in to view your saved properties."
-        );
-      }
-
-      // IMPORTANT:
-      // Use the dedicated saved-properties endpoint.
-      const data =
-        await getSavedProperties(token);
-
-      const properties =
-        data?.properties ||
-        data?.data?.properties ||
-        data?.data ||
-        (Array.isArray(data)
-          ? data
-          : []);
-
-      setSavedProperties(
-        Array.isArray(properties)
-          ? properties
-          : []
-      );
-    } catch (err) {
-      console.error(
-        "Failed to load saved properties:",
-        err
-      );
-
-      setError(
-        err.message ||
-          "Unable to load your saved properties."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ===================================================
-  // INITIAL LOAD
-  // ===================================================
+  const token = localStorage.getItem("mtaa_token");
 
   useEffect(() => {
-    loadSavedProperties();
-  }, []);
+    let active = true;
 
-  // ===================================================
-  // REMOVE SAVED PROPERTY
-  // ===================================================
-
-  const handleRemove = async (
-    propertyId
-  ) => {
-    try {
-      const token =
-        localStorage.getItem("mtaa_token");
-
+    async function loadSavedProperties() {
       if (!token) {
-        throw new Error(
-          "Please log in again."
-        );
+        if (active) {
+          setProperties([]);
+          setLoading(false);
+        }
+        return;
       }
 
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await getSavedProperties(token);
+
+        if (!active) return;
+
+        const saved =
+          response?.properties ||
+          response?.savedProperties ||
+          response?.data ||
+          [];
+
+        setProperties(Array.isArray(saved) ? saved : []);
+      } catch (err) {
+        if (!active) return;
+
+        setError(
+          err?.message ||
+            "Unable to load your saved properties."
+        );
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadSavedProperties();
+
+    return () => {
+      active = false;
+    };
+  }, [token]);
+
+  async function handleRemove(propertyId) {
+    if (!token || !propertyId) return;
+
+    try {
       setRemovingId(propertyId);
+      setError("");
 
-      const result =
-        await togglePropertySave(
-          propertyId,
-          token
-        );
+      await togglePropertySave(token, propertyId);
 
-      if (
-        result?.saved === false ||
-        result?.data?.saved === false
-      ) {
-        setSavedProperties(
-          (currentProperties) =>
-            currentProperties.filter(
-              (property) =>
-                property.id !== propertyId
-            )
-        );
-      } else {
-        // If the backend response format
-        // is different, reload the list.
-        await loadSavedProperties();
-      }
-    } catch (err) {
-      console.error(
-        "Failed to remove saved property:",
-        err
+      setProperties((current) =>
+        current.filter(
+          (property) =>
+            String(property.id) !== String(propertyId)
+        )
       );
-
-      alert(
-        err.message ||
-          "Unable to remove this property from your saved properties."
+    } catch (err) {
+      setError(
+        err?.message ||
+          "Unable to remove this property from saved properties."
       );
     } finally {
-      setRemovingId(null);
+      setRemovingId("");
     }
-  };
-
-  // ===================================================
-  // FORMAT PRICE
-  // ===================================================
-
-  const formatPrice = (price) => {
-    const number = Number(price);
-
-    if (Number.isNaN(number)) {
-      return "Price unavailable";
-    }
-
-    return (
-      "KSh " +
-      number.toLocaleString("en-KE")
-    );
-  };
-
-  // ===================================================
-  // GET PROPERTY IMAGE
-  // ===================================================
-
-  const getPropertyImage = (property) => {
-    if (
-      property?.images &&
-      Array.isArray(property.images) &&
-      property.images.length > 0
-    ) {
-      const coverImage =
-        property.images.find(
-          (image) => image.isCover
-        );
-
-      const firstImage =
-        coverImage ||
-        property.images[0];
-
-      return getImageUrl(
-        firstImage?.url ||
-          firstImage?.imageUrl ||
-          firstImage?.path
-      );
-    }
-
-    return getImageUrl(
-      property?.imageUrl
-    );
-  };
-
-  // ===================================================
-  // LOADING
-  // ===================================================
-
-  if (loading) {
-    return (
-      <div className="saved-properties-page">
-        <header className="saved-properties-header">
-          <button
-            type="button"
-            className="saved-back-button"
-            onClick={onBack}
-          >
-            ← Back
-          </button>
-
-          <div>
-            <p className="saved-page-label">
-              MTAA
-            </p>
-
-            <h1>
-              Saved Properties
-            </h1>
-          </div>
-        </header>
-
-        <div className="saved-properties-message">
-          <div className="saved-loading-icon">
-            ⏳
-          </div>
-
-          <h2>
-            Loading saved properties...
-          </h2>
-
-          <p>
-            Please wait while we find
-            your saved properties.
-          </p>
-        </div>
-      </div>
-    );
   }
 
-  // ===================================================
-  // ERROR
-  // ===================================================
-
-  if (error) {
-    return (
-      <div className="saved-properties-page">
-        <header className="saved-properties-header">
-          <button
-            type="button"
-            className="saved-back-button"
-            onClick={onBack}
-          >
-            ← Back
-          </button>
-
-          <div>
-            <p className="saved-page-label">
-              MTAA
-            </p>
-
-            <h1>
-              Saved Properties
-            </h1>
-          </div>
-        </header>
-
-        <div className="saved-properties-message error">
-          <div className="saved-message-icon">
-            ⚠️
-          </div>
-
-          <h2>
-            Something went wrong
-          </h2>
-
-          <p>
-            {error}
-          </p>
-
-          <button
-            type="button"
-            className="saved-retry-button"
-            onClick={
-              loadSavedProperties
-            }
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
+  function handleView(property) {
+    if (onViewProperty) {
+      onViewProperty(property);
+    }
   }
 
-  // ===================================================
-  // EMPTY STATE
-  // ===================================================
-
-  if (savedProperties.length === 0) {
+  if (!user && onRequireAuth) {
     return (
-      <div className="saved-properties-page">
-        <header className="saved-properties-header">
-          <button
-            type="button"
-            className="saved-back-button"
-            onClick={onBack}
-          >
-            ← Back
-          </button>
-
-          <div>
-            <p className="saved-page-label">
-              MTAA
-            </p>
-
-            <h1>
-              Saved Properties
-            </h1>
-          </div>
-        </header>
-
-        <div className="saved-properties-message">
-          <div className="saved-message-icon">
-            🔖
-          </div>
-
-          <h2>
-            No saved properties yet
-          </h2>
-
+      <section className="saved-properties-page">
+        <div className="saved-properties-empty">
+          <h2>Sign in to see your saved properties</h2>
           <p>
-            Properties you save will
-            appear here.
+            Save homes you like and find them again anytime.
           </p>
-
           <button
             type="button"
-            className="saved-retry-button"
-            onClick={onBack}
+            onClick={onRequireAuth}
+            className="saved-properties-primary-button"
           >
-            Browse Properties
+            Sign in
           </button>
         </div>
-      </div>
+      </section>
     );
   }
-
-  // ===================================================
-  // MAIN PAGE
-  // ===================================================
 
   return (
-    <div className="saved-properties-page">
+    <section className="saved-properties-page">
+      <div className="saved-properties-header">
+        <div>
+          <button
+            type="button"
+            onClick={onBack}
+            className="saved-properties-back-button"
+          >
+            ← Back
+          </button>
 
-      {/* ============================================= */}
-      {/* HEADER */}
-      {/* ============================================= */}
-
-      <header className="saved-properties-header">
-
-        <button
-          type="button"
-          className="saved-back-button"
-          onClick={onBack}
-        >
-          ← Back
-        </button>
-
-        <div className="saved-header-content">
-          <p className="saved-page-label">
+          <p className="saved-properties-eyebrow">
             MTAA
           </p>
 
-          <h1>
-            Saved Properties
-          </h1>
+          <h1>Saved Properties</h1>
 
-          <p className="saved-page-subtitle">
-            Properties you have saved for
-            later.
+          <p>
+            Properties you saved for later.
           </p>
         </div>
 
         <div className="saved-properties-count">
-          {savedProperties.length}{" "}
-          {savedProperties.length === 1
-            ? "Property"
-            : "Properties"}
+          {properties.length} saved
         </div>
+      </div>
 
-      </header>
+      {error ? (
+        <div className="saved-properties-error">
+          {error}
+        </div>
+      ) : null}
 
-      {/* ============================================= */}
-      {/* CONTENT */}
-      {/* ============================================= */}
+      {loading ? (
+        <div className="saved-properties-empty">
+          <h2>Loading saved properties...</h2>
+        </div>
+      ) : properties.length === 0 ? (
+        <div className="saved-properties-empty">
+          <div className="saved-properties-empty-icon">
+            ♡
+          </div>
 
-      <main className="saved-properties-content">
+          <h2>No saved properties yet</h2>
 
+          <p>
+            When you save a property, it will appear here.
+          </p>
+
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="saved-properties-primary-button"
+            >
+              Browse properties
+            </button>
+          ) : null}
+        </div>
+      ) : (
         <div className="saved-properties-grid">
+          {properties.map((property) => {
+            const image = getPropertyImage(property);
 
-          {savedProperties.map(
-            (property) => {
-              const imageUrl =
-                getPropertyImage(
-                  property
-                );
-
-              const propertyType =
-                property.propertyType ||
-                "Property";
-
-              return (
-                <article
-                  className="saved-property-card"
-                  key={property.id}
-                >
-
-                  {/* ================================= */}
-                  {/* IMAGE */}
-                  {/* ================================= */}
-
-                  <div className="saved-property-image">
-
-                    {imageUrl ? (
-                      <img
-                        src={imageUrl}
-                        alt={
-                          property.title ||
-                          "Saved property"
-                        }
-                      />
-                    ) : (
-                      <div className="saved-property-no-image">
-                        🏠
-                      </div>
-                    )}
-
-                    <div className="saved-property-badge">
-                      🔖 Saved
+            return (
+              <article
+                key={property.id}
+                className="saved-property-card"
+              >
+                <div className="saved-property-image">
+                  {image ? (
+                    <img
+                      src={image}
+                      alt={property.title || "Saved property"}
+                    />
+                  ) : (
+                    <div className="saved-property-image-placeholder">
+                      MTAA
                     </div>
+                  )}
 
-                    <div className="saved-property-type">
-                      {propertyType}
-                    </div>
+                  <button
+                    type="button"
+                    className="saved-property-remove"
+                    onClick={() =>
+                      handleRemove(property.id)
+                    }
+                    disabled={
+                      removingId === String(property.id)
+                    }
+                  >
+                    {removingId === String(property.id)
+                      ? "Removing..."
+                      : "♥ Saved"}
+                  </button>
+                </div>
 
+                <div className="saved-property-content">
+                  <div className="saved-property-top">
+                    <span className="saved-property-type">
+                      {property.propertyType ||
+                        "Property"}
+                    </span>
+
+                    <strong>
+                      {formatPrice(property.price)}
+                    </strong>
                   </div>
 
-                  {/* ================================= */}
-                  {/* CARD CONTENT */}
-                  {/* ================================= */}
+                  <h2>
+                    {property.title ||
+                      "MTAA Property"}
+                  </h2>
 
-                  <div className="saved-property-content">
+                  <p className="saved-property-location">
+                    {property.location ||
+                      "Location not specified"}
+                  </p>
 
-                    <h2>
-                      {property.title ||
-                        "Untitled Property"}
-                    </h2>
+                  <div className="saved-property-details">
+                    {property.bedrooms !== null &&
+                    property.bedrooms !== undefined ? (
+                      <span>
+                        🛏 {property.bedrooms} beds
+                      </span>
+                    ) : null}
 
-                    <p className="saved-property-location">
-                      📍{" "}
-                      {property.location ||
-                        "Location unavailable"}
-                    </p>
+                    {property.bathrooms !== null &&
+                    property.bathrooms !== undefined ? (
+                      <span>
+                        🛁 {property.bathrooms} baths
+                      </span>
+                    ) : null}
 
-                    {property.description && (
-                      <p className="saved-property-description">
-                        {property.description}
-                      </p>
-                    )}
-
-                    {/* =============================== */}
-                    {/* DETAILS */}
-                    {/* =============================== */}
-
-                    <div className="saved-property-details">
-
-                      {property.bedrooms !==
-                        null &&
-                        property.bedrooms !==
-                          undefined && (
-                          <span>
-                            🛏️{" "}
-                            {property.bedrooms}{" "}
-                            Bedroom
-                            {property.bedrooms ===
-                            1
-                              ? ""
-                              : "s"}
-                          </span>
-                        )}
-
-                      {property.bathrooms !==
-                        null &&
-                        property.bathrooms !==
-                          undefined && (
-                          <span>
-                            🚿{" "}
-                            {property.bathrooms}{" "}
-                            Bathroom
-                            {property.bathrooms ===
-                            1
-                              ? ""
-                              : "s"}
-                          </span>
-                        )}
-
-                      {property.parking !==
-                        null &&
-                        property.parking !==
-                          undefined && (
-                          <span>
-                            🚗{" "}
-                            {property.parking}{" "}
-                            Parking
-                          </span>
-                        )}
-
-                    </div>
-
-                    {/* =============================== */}
-                    {/* PRICE */}
-                    {/* =============================== */}
-
-                    <div className="saved-property-price">
-                      {formatPrice(
-                        property.price
-                      )}
-                    </div>
-
-                    {/* =============================== */}
-                    {/* OWNER */}
-                    {/* =============================== */}
-
-                    <div className="saved-property-owner">
-
-                      <div className="saved-owner-avatar">
-                        {property.owner?.name
-                          ? property.owner.name
-                              .charAt(0)
-                              .toUpperCase()
-                          : "M"}
-                      </div>
-
-                      <div className="saved-owner-info">
-
-                        <strong>
-                          {property.owner?.name ||
-                            "MTAA Property Owner"}
-                        </strong>
-
-                        <span>
-                          {property.owner?.role ||
-                            "PROPERTY OWNER"}
-                        </span>
-
-                      </div>
-
-                    </div>
-
-                    {/* =============================== */}
-                    {/* ACTIONS */}
-                    {/* =============================== */}
-
-                    <div className="saved-property-actions">
-
-                      <button
-                        type="button"
-                        className="saved-view-button"
-                        onClick={() => {
-                          if (
-                            onViewProperty
-                          ) {
-                            onViewProperty(
-                              property.id
-                            );
-                          }
-                        }}
-                      >
-                        View Property
-                      </button>
-
-                      <button
-                        type="button"
-                        className="saved-remove-button"
-                        disabled={
-                          removingId ===
-                          property.id
-                        }
-                        onClick={() =>
-                          handleRemove(
-                            property.id
-                          )
-                        }
-                      >
-                        {removingId ===
-                        property.id
-                          ? "Removing..."
-                          : "Remove"}
-                      </button>
-
-                    </div>
-
+                    {property.parking !== null &&
+                    property.parking !== undefined ? (
+                      <span>
+                        🚗 {property.parking} parking
+                      </span>
+                    ) : null}
                   </div>
 
-                </article>
-              );
-            }
-          )}
+                  <div className="saved-property-owner">
+                    <div className="saved-property-owner-avatar">
+                      {property.owner?.name
+                        ? property.owner.name
+                            .charAt(0)
+                            .toUpperCase()
+                        : "M"}
+                    </div>
 
+                    <div>
+                      <strong>
+                        {property.owner?.name ||
+                          "MTAA Property Owner"}
+                      </strong>
+
+                      <span>
+                        {property.owner?.role ||
+                          "PROPERTY OWNER"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="saved-properties-view-button"
+                    onClick={() =>
+                      handleView(property)
+                    }
+                  >
+                    View property
+                  </button>
+                </div>
+              </article>
+            );
+          })}
         </div>
-
-      </main>
-
-    </div>
+      )}
+    </section>
   );
 }
-
-export default SavedProperties;

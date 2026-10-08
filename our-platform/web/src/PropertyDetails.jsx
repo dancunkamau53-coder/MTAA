@@ -9,7 +9,13 @@ import {
   getPropertyComments,
   addPropertyComment,
   deletePropertyComment,
+  getPropertyReviews,
+  createReview,
+  updateReview,
+  deleteReview,
 } from "./services/api";
+
+import PropertyMap from "./PropertyMap";
 
 import "./PropertyDetails.css";
 
@@ -21,58 +27,90 @@ function PropertyDetails({
   propertyId,
   onBack,
 }) {
-  const [property, setProperty] =
-    useState(null);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
+  const [property, setProperty] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [selectedImage, setSelectedImage] =
     useState(0);
 
-  const [liked, setLiked] =
-    useState(false);
-
-  const [saved, setSaved] =
-    useState(false);
-
-  const [likeCount, setLikeCount] =
-    useState(0);
+  const [liked, setLiked] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
 
   // =====================================================
-  // COMMENTS STATE
+  // COMMENTS
   // =====================================================
 
-  const [comments, setComments] =
-    useState([]);
-
-  const [commentText, setCommentText] =
-    useState("");
-
+  const [comments, setComments] = useState([]);
+  const [commentText, setCommentText] = useState("");
   const [commentsLoading, setCommentsLoading] =
     useState(true);
-
   const [commentSubmitting, setCommentSubmitting] =
     useState(false);
+  const [commentError, setCommentError] = useState("");
 
-  const [commentError, setCommentError] =
+  // =====================================================
+  // REVIEWS & RATINGS
+  // =====================================================
+
+  const [reviews, setReviews] = useState([]);
+  const [reviewSummary, setReviewSummary] =
+    useState({
+      averageRating: 0,
+      totalReviews: 0,
+    });
+
+  const [reviewsLoading, setReviewsLoading] =
+    useState(true);
+
+  const [reviewError, setReviewError] =
     useState("");
 
-  // =====================================================
-  // NEARBY PLACES STATE
-  // =====================================================
+  const [reviewRating, setReviewRating] =
+    useState(5);
 
-  const [nearbyPlaces, setNearbyPlaces] =
-    useState([]);
+  const [reviewComment, setReviewComment] =
+    useState("");
 
-  const [nearbyLoading, setNearbyLoading] =
+  const [reviewSubmitting, setReviewSubmitting] =
     useState(false);
 
-  const [nearbyError, setNearbyError] =
-    useState("");
+  const [editingReviewId, setEditingReviewId] =
+    useState(null);
+
+  // =====================================================
+  // NEARBY PLACES
+  // =====================================================
+
+  const [nearbyPlaces, setNearbyPlaces] = useState([]);
+  const [nearbyLoading, setNearbyLoading] =
+    useState(false);
+  const [nearbyError, setNearbyError] = useState("");
+
+  // =====================================================
+  // CURRENT USER
+  // =====================================================
+
+  const getCurrentUser = () => {
+    try {
+      const storedUser =
+        localStorage.getItem("mtaa_user");
+
+      if (storedUser) {
+        return JSON.parse(storedUser);
+      }
+    } catch (err) {
+      console.error(
+        "Failed to read current user:",
+        err
+      );
+    }
+
+    return null;
+  };
+
+  const currentUser = getCurrentUser();
 
   // =====================================================
   // LOAD PROPERTY
@@ -92,9 +130,13 @@ function PropertyDetails({
           data?.data?.property ||
           data;
 
-        setProperty(
-          loadedProperty
-        );
+        if (!loadedProperty) {
+          throw new Error(
+            "Property could not be found."
+          );
+        }
+
+        setProperty(loadedProperty);
 
         setLikeCount(
           Number(
@@ -104,6 +146,8 @@ function PropertyDetails({
               0
           )
         );
+
+        setSelectedImage(0);
       } catch (err) {
         console.error(
           "Failed to load property:",
@@ -111,7 +155,7 @@ function PropertyDetails({
         );
 
         setError(
-          err.message ||
+          err?.message ||
             "Failed to load property."
         );
       } finally {
@@ -129,65 +173,55 @@ function PropertyDetails({
   // =====================================================
 
   useEffect(() => {
-    const loadInteractionStatus =
-      async () => {
-        const token =
-          localStorage.getItem(
-            "mtaa_token"
+    const loadInteractionStatus = async () => {
+      const token =
+        localStorage.getItem("mtaa_token");
+
+      if (!token || !propertyId) {
+        return;
+      }
+
+      try {
+        const data =
+          await getPropertyInteractionStatus(
+            propertyId,
+            token
           );
 
-        if (
-          !token ||
-          !propertyId
-        ) {
-          return;
+        setLiked(
+          Boolean(
+            data?.liked ||
+              data?.isLiked ||
+              data?.data?.liked ||
+              data?.data?.isLiked
+          )
+        );
+
+        setSaved(
+          Boolean(
+            data?.saved ||
+              data?.isSaved ||
+              data?.data?.saved ||
+              data?.data?.isSaved
+          )
+        );
+
+        const count =
+          data?.likesCount ??
+          data?.likeCount ??
+          data?.data?.likesCount ??
+          data?.data?.likeCount;
+
+        if (count !== undefined) {
+          setLikeCount(Number(count));
         }
-
-        try {
-          const data =
-            await getPropertyInteractionStatus(
-              propertyId,
-              token
-            );
-
-          setLiked(
-            Boolean(
-              data?.liked ||
-                data?.isLiked ||
-                data?.data?.liked ||
-                data?.data?.isLiked
-            )
-          );
-
-          setSaved(
-            Boolean(
-              data?.saved ||
-                data?.isSaved ||
-                data?.data?.saved ||
-                data?.data?.isSaved
-            )
-          );
-
-          const count =
-            data?.likesCount ??
-            data?.likeCount ??
-            data?.data?.likesCount ??
-            data?.data?.likeCount;
-
-          if (
-            count !== undefined
-          ) {
-            setLikeCount(
-              Number(count)
-            );
-          }
-        } catch (err) {
-          console.error(
-            "Failed to load interaction status:",
-            err
-          );
-        }
-      };
+      } catch (err) {
+        console.error(
+          "Failed to load interaction status:",
+          err
+        );
+      }
+    };
 
     loadInteractionStatus();
   }, [propertyId]);
@@ -197,52 +231,125 @@ function PropertyDetails({
   // =====================================================
 
   useEffect(() => {
-    const loadComments =
-      async () => {
-        if (!propertyId) {
-          return;
-        }
+    const loadComments = async () => {
+      if (!propertyId) {
+        setCommentsLoading(false);
+        return;
+      }
 
-        try {
-          setCommentsLoading(true);
-          setCommentError("");
+      try {
+        setCommentsLoading(true);
+        setCommentError("");
 
-          const data =
-            await getPropertyComments(
-              propertyId
-            );
+        const data =
+          await getPropertyComments(propertyId);
 
-          const loadedComments =
-            data?.comments ||
-            data?.data?.comments ||
-            data?.data ||
-            (Array.isArray(data)
-              ? data
-              : []);
+        const loadedComments =
+          data?.comments ||
+          data?.data?.comments ||
+          data?.data ||
+          (Array.isArray(data) ? data : []);
 
-          setComments(
-            Array.isArray(
-              loadedComments
-            )
-              ? loadedComments
-              : []
-          );
-        } catch (err) {
-          console.error(
-            "Failed to load comments:",
-            err
-          );
+        setComments(
+          Array.isArray(loadedComments)
+            ? loadedComments
+            : []
+        );
+      } catch (err) {
+        console.error(
+          "Failed to load comments:",
+          err
+        );
 
-          setCommentError(
-            err.message ||
-              "Failed to load comments."
-          );
-        } finally {
-          setCommentsLoading(false);
-        }
-      };
+        setCommentError(
+          err?.message ||
+            "Failed to load comments."
+        );
+      } finally {
+        setCommentsLoading(false);
+      }
+    };
 
     loadComments();
+  }, [propertyId]);
+
+  // =====================================================
+  // LOAD REVIEWS
+  // =====================================================
+
+  const loadReviews = async () => {
+    if (!propertyId) {
+      setReviews([]);
+      setReviewSummary({
+        averageRating: 0,
+        totalReviews: 0,
+      });
+      setReviewsLoading(false);
+      return;
+    }
+
+    try {
+      setReviewsLoading(true);
+      setReviewError("");
+
+      const data =
+        await getPropertyReviews(
+          propertyId
+        );
+
+      const loadedReviews =
+        data?.reviews ||
+        data?.data?.reviews ||
+        (Array.isArray(data)
+          ? data
+          : []);
+
+      const summary =
+        data?.summary ||
+        data?.data?.summary ||
+        {};
+
+      setReviews(
+        Array.isArray(loadedReviews)
+          ? loadedReviews
+          : []
+      );
+
+      setReviewSummary({
+        averageRating:
+          Number(
+            summary?.averageRating || 0
+          ),
+        totalReviews:
+          Number(
+            summary?.totalReviews ??
+              loadedReviews?.length ??
+              0
+          ),
+      });
+    } catch (err) {
+      console.error(
+        "Failed to load reviews:",
+        err
+      );
+
+      setReviewError(
+        err?.message ||
+          "Failed to load reviews."
+      );
+
+      setReviews([]);
+      setReviewSummary({
+        averageRating: 0,
+        totalReviews: 0,
+      });
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadReviews();
   }, [propertyId]);
 
   // =====================================================
@@ -250,55 +357,65 @@ function PropertyDetails({
   // =====================================================
 
   useEffect(() => {
-    const loadNearbyPlaces =
-      async () => {
-        if (
-          !propertyId ||
-          property?.latitude === null ||
-          property?.latitude === undefined ||
-          property?.longitude === null ||
-          property?.longitude === undefined
-        ) {
-          setNearbyPlaces([]);
-          setNearbyLoading(false);
-          return;
-        }
+    const loadNearbyPlaces = async () => {
+      if (!propertyId) {
+        setNearbyPlaces([]);
+        setNearbyLoading(false);
+        return;
+      }
 
-        try {
-          setNearbyLoading(true);
-          setNearbyError("");
+      const latitude =
+        Number(property?.latitude);
 
-          const data =
-            await getNearbyPlaces(
-              propertyId
-            );
+      const longitude =
+        Number(property?.longitude);
 
-          const places =
-            data?.places ||
-            data?.data?.places ||
-            [];
+      const hasValidCoordinates =
+        Number.isFinite(latitude) &&
+        Number.isFinite(longitude);
 
-          setNearbyPlaces(
-            Array.isArray(places)
-              ? places
-              : []
-          );
-        } catch (err) {
-          console.error(
-            "Failed to load nearby places:",
-            err
+      if (!hasValidCoordinates) {
+        setNearbyPlaces([]);
+        setNearbyError("");
+        setNearbyLoading(false);
+        return;
+      }
+
+      try {
+        setNearbyLoading(true);
+        setNearbyError("");
+
+        const data =
+          await getNearbyPlaces(
+            propertyId
           );
 
-          setNearbyError(
-            err.message ||
-              "Failed to load nearby places."
-          );
+        const places =
+          data?.places ||
+          data?.data?.places ||
+          [];
 
-          setNearbyPlaces([]);
-        } finally {
-          setNearbyLoading(false);
-        }
-      };
+        setNearbyPlaces(
+          Array.isArray(places)
+            ? places
+            : []
+        );
+      } catch (err) {
+        console.error(
+          "Failed to load nearby places:",
+          err
+        );
+
+        setNearbyError(
+          err?.message ||
+            "Failed to load nearby places."
+        );
+
+        setNearbyPlaces([]);
+      } finally {
+        setNearbyLoading(false);
+      }
+    };
 
     loadNearbyPlaces();
   }, [
@@ -311,9 +428,7 @@ function PropertyDetails({
   // IMAGE URL
   // =====================================================
 
-  const getImageUrl = (
-    image
-  ) => {
+  const getImageUrl = (image) => {
     if (!image) {
       return "";
     }
@@ -321,8 +436,7 @@ function PropertyDetails({
     const url =
       typeof image === "string"
         ? image
-        : image.url ||
-          image.imageUrl;
+        : image.url || image.imageUrl;
 
     if (!url) {
       return "";
@@ -344,7 +458,7 @@ function PropertyDetails({
   };
 
   // =====================================================
-  // PROPERTY IMAGES
+  // GALLERY
   // =====================================================
 
   const propertyImages =
@@ -355,12 +469,10 @@ function PropertyDetails({
         : [];
 
   const galleryItems = [
-    ...propertyImages.map(
-      (image) => ({
-        type: "image",
-        media: image,
-      })
-    ),
+    ...propertyImages.map((image) => ({
+      type: "image",
+      media: image,
+    })),
 
     ...(property?.videos || []).map(
       (video) => ({
@@ -370,9 +482,7 @@ function PropertyDetails({
     ),
   ];
 
-  if (
-    galleryItems.length === 0
-  ) {
+  if (galleryItems.length === 0) {
     galleryItems.push({
       type: "image",
       media:
@@ -412,9 +522,7 @@ function PropertyDetails({
 
   const handleLike = async () => {
     const token =
-      localStorage.getItem(
-        "mtaa_token"
-      );
+      localStorage.getItem("mtaa_token");
 
     if (!token) {
       alert(
@@ -436,12 +544,8 @@ function PropertyDetails({
         data?.data?.liked ??
         data?.data?.isLiked;
 
-      if (
-        newLiked !== undefined
-      ) {
-        setLiked(
-          Boolean(newLiked)
-        );
+      if (newLiked !== undefined) {
+        setLiked(Boolean(newLiked));
       } else {
         setLiked(
           (current) => !current
@@ -454,26 +558,19 @@ function PropertyDetails({
         data?.data?.likeCount ??
         data?.data?.likesCount;
 
-      if (
-        count !== undefined
-      ) {
-        setLikeCount(
-          Number(count)
-        );
+      if (count !== undefined) {
+        setLikeCount(Number(count));
       } else {
         setLikeCount(
           (current) =>
             liked
-              ? Math.max(
-                  0,
-                  current - 1
-                )
+              ? Math.max(0, current - 1)
               : current + 1
         );
       }
     } catch (err) {
       alert(
-        err.message ||
+        err?.message ||
           "Failed to update like."
       );
     }
@@ -485,9 +582,7 @@ function PropertyDetails({
 
   const handleSave = async () => {
     const token =
-      localStorage.getItem(
-        "mtaa_token"
-      );
+      localStorage.getItem("mtaa_token");
 
     if (!token) {
       alert(
@@ -509,12 +604,8 @@ function PropertyDetails({
         data?.data?.saved ??
         data?.data?.isSaved;
 
-      if (
-        newSaved !== undefined
-      ) {
-        setSaved(
-          Boolean(newSaved)
-        );
+      if (newSaved !== undefined) {
+        setSaved(Boolean(newSaved));
       } else {
         setSaved(
           (current) => !current
@@ -522,7 +613,7 @@ function PropertyDetails({
       }
     } catch (err) {
       alert(
-        err.message ||
+        err?.message ||
           "Failed to save property."
       );
     }
@@ -537,9 +628,7 @@ function PropertyDetails({
       window.location.href;
 
     try {
-      if (
-        navigator.share
-      ) {
+      if (navigator.share) {
         await navigator.share({
           title:
             property?.title ||
@@ -548,13 +637,17 @@ function PropertyDetails({
             "Check out this property on MTAA.",
           url: shareUrl,
         });
-      } else {
+      } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(
           shareUrl
         );
 
         alert(
           "Property link copied!"
+        );
+      } else {
+        alert(
+          "Sharing is not supported on this browser."
         );
       }
     } catch (err) {
@@ -569,317 +662,648 @@ function PropertyDetails({
   // CONTACT OWNER
   // =====================================================
 
-  const handleContactOwner =
-    () => {
-      const phone =
-        property?.owner?.phone;
+  const handleContactOwner = () => {
+    const phone =
+      property?.owner?.phone;
 
-      if (phone) {
-        window.location.href =
-          "tel:" + phone;
-        return;
-      }
+    if (phone) {
+      window.location.href =
+        "tel:" + phone;
+      return;
+    }
 
-      const email =
-        property?.owner?.email;
+    const email =
+      property?.owner?.email;
 
-      if (email) {
-        window.location.href =
-          "mailto:" + email;
-        return;
-      }
+    if (email) {
+      window.location.href =
+        "mailto:" + email;
+      return;
+    }
 
-      alert(
-        "The property owner has not provided contact details."
-      );
-    };
+    alert(
+      "The property owner has not provided contact details."
+    );
+  };
 
   // =====================================================
   // ADD COMMENT
   // =====================================================
 
-  const handleAddComment =
-    async (event) => {
-      event.preventDefault();
+  const handleAddComment = async (
+    event
+  ) => {
+    event.preventDefault();
 
-      const token =
-        localStorage.getItem(
-          "mtaa_token"
+    const token =
+      localStorage.getItem("mtaa_token");
+
+    if (!token) {
+      alert(
+        "Please login to comment on this property."
+      );
+      return;
+    }
+
+    const trimmedComment =
+      commentText.trim();
+
+    if (!trimmedComment) {
+      setCommentError(
+        "Please write a comment before posting."
+      );
+      return;
+    }
+
+    if (trimmedComment.length > 500) {
+      setCommentError(
+        "Comment cannot exceed 500 characters."
+      );
+      return;
+    }
+
+    try {
+      setCommentSubmitting(true);
+      setCommentError("");
+
+      const data =
+        await addPropertyComment(
+          propertyId,
+          trimmedComment,
+          token
         );
 
-      if (!token) {
-        alert(
-          "Please login to comment on this property."
-        );
-        return;
-      }
-
-      const trimmedComment =
-        commentText.trim();
-
-      if (!trimmedComment) {
-        setCommentError(
-          "Please write a comment before posting."
-        );
-        return;
-      }
+      const newComment =
+        data?.comment ||
+        data?.data?.comment ||
+        data?.data;
 
       if (
-        trimmedComment.length >
-        500
+        newComment &&
+        typeof newComment ===
+          "object"
       ) {
-        setCommentError(
-          "Comment cannot exceed 500 characters."
+        setComments(
+          (current) => [
+            newComment,
+            ...current,
+          ]
         );
-        return;
+      } else {
+        const refreshed =
+          await getPropertyComments(
+            propertyId
+          );
+
+        const refreshedComments =
+          refreshed?.comments ||
+          refreshed?.data?.comments ||
+          refreshed?.data ||
+          (Array.isArray(refreshed)
+            ? refreshed
+            : []);
+
+        setComments(
+          Array.isArray(
+            refreshedComments
+          )
+            ? refreshedComments
+            : []
+        );
       }
 
-      try {
-        setCommentSubmitting(
-          true
-        );
+      setCommentText("");
+    } catch (err) {
+      console.error(
+        "Failed to add comment:",
+        err
+      );
 
-        setCommentError("");
-
-        const data =
-          await addPropertyComment(
-            propertyId,
-            trimmedComment,
-            token
-          );
-
-        const newComment =
-          data?.comment ||
-          data?.data?.comment ||
-          data?.data;
-
-        if (
-          newComment &&
-          typeof newComment ===
-            "object"
-        ) {
-          setComments(
-            (current) => [
-              newComment,
-              ...current,
-            ]
-          );
-        } else {
-          const refreshed =
-            await getPropertyComments(
-              propertyId
-            );
-
-          const refreshedComments =
-            refreshed?.comments ||
-            refreshed?.data?.comments ||
-            refreshed?.data ||
-            (Array.isArray(
-              refreshed
-            )
-              ? refreshed
-              : []);
-
-          setComments(
-            Array.isArray(
-              refreshedComments
-            )
-              ? refreshedComments
-              : []
-          );
-        }
-
-        setCommentText("");
-      } catch (err) {
-        console.error(
-          "Failed to add comment:",
-          err
-        );
-
-        setCommentError(
-          err.message ||
-            "Failed to add comment."
-        );
-      } finally {
-        setCommentSubmitting(
-          false
-        );
-      }
-    };
+      setCommentError(
+        err?.message ||
+          "Failed to add comment."
+      );
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
 
   // =====================================================
   // DELETE COMMENT
   // =====================================================
 
-  const handleDeleteComment =
-    async (commentId) => {
-      const token =
-        localStorage.getItem(
-          "mtaa_token"
-        );
+  const handleDeleteComment = async (
+    commentId
+  ) => {
+    const token =
+      localStorage.getItem("mtaa_token");
 
-      if (!token) {
-        alert(
-          "Please login first."
-        );
-        return;
+    if (!token) {
+      alert("Please login first.");
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to delete this comment?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deletePropertyComment(
+        propertyId,
+        commentId,
+        token
+      );
+
+      setComments(
+        (current) =>
+          current.filter(
+            (comment) =>
+              comment.id !==
+              commentId
+          )
+      );
+    } catch (err) {
+      alert(
+        err?.message ||
+          "Failed to delete comment."
+      );
+    }
+  };
+
+  // =====================================================
+  // REVIEW HELPERS
+  // =====================================================
+
+  const getReviewAuthor = (review) =>
+    review?.author ||
+    review?.user ||
+    {};
+
+  const getReviewAuthorName = (
+    review
+  ) => {
+    const author =
+      getReviewAuthor(review);
+
+    return (
+      author?.name ||
+      review?.authorName ||
+      review?.userName ||
+      "MTAA User"
+    );
+  };
+
+  const getReviewAuthorRole = (
+    review
+  ) => {
+    const author =
+      getReviewAuthor(review);
+
+    return (
+      author?.role ||
+      review?.authorRole ||
+      review?.userRole ||
+      "USER"
+    );
+  };
+
+  const getReviewAuthorId = (
+    review
+  ) => {
+    const author =
+      getReviewAuthor(review);
+
+    return (
+      review?.authorId ||
+      review?.userId ||
+      author?.id ||
+      author?.userId ||
+      null
+    );
+  };
+
+  const isOwnReview = (review) => {
+    if (
+      !currentUser ||
+      !review
+    ) {
+      return false;
+    }
+
+    const currentUserId =
+      currentUser.id ||
+      currentUser.userId;
+
+    const reviewAuthorId =
+      getReviewAuthorId(review);
+
+    if (
+      !currentUserId ||
+      !reviewAuthorId
+    ) {
+      return false;
+    }
+
+    return (
+      String(currentUserId) ===
+      String(reviewAuthorId)
+    );
+  };
+
+  const formatReviewDate = (
+    date
+  ) => {
+    if (!date) {
+      return "";
+    }
+
+    const parsedDate =
+      new Date(date);
+
+    if (
+      Number.isNaN(
+        parsedDate.getTime()
+      )
+    ) {
+      return "";
+    }
+
+    return parsedDate.toLocaleString(
+      "en-KE",
+      {
+        dateStyle: "medium",
+        timeStyle: "short",
       }
+    );
+  };
 
-      const confirmed =
-        window.confirm(
-          "Are you sure you want to delete this comment?"
-        );
+  const renderStars = (
+    rating,
+    interactive = false
+  ) => {
+    const numericRating =
+      Number(rating) || 0;
 
-      if (!confirmed) {
-        return;
-      }
+    return (
+      <div
+        className={
+          interactive
+            ? "review-stars review-stars-interactive"
+            : "review-stars"
+        }
+        aria-label={
+          `${numericRating} out of 5 stars`
+        }
+      >
+        {[1, 2, 3, 4, 5].map(
+          (star) => (
+            <button
+              key={star}
+              type="button"
+              className={
+                interactive
+                  ? "review-star-button " +
+                    (star <=
+                    numericRating
+                      ? "active"
+                      : "")
+                  : "review-star"
+              }
+              onClick={
+                interactive
+                  ? () =>
+                      setReviewRating(
+                        star
+                      )
+                  : undefined
+              }
+              disabled={
+                !interactive
+              }
+              aria-label={
+                `Rate ${star} out of 5`
+              }
+            >
+              {star <=
+              numericRating
+                ? "★"
+                : "☆"}
+            </button>
+          )
+        )}
+      </div>
+    );
+  };
 
-      try {
-        await deletePropertyComment(
-          propertyId,
-          commentId,
-          token
-        );
+  // =====================================================
+  // START EDIT REVIEW
+  // =====================================================
 
-        setComments(
-          (current) =>
-            current.filter(
-              (comment) =>
-                comment.id !==
-                commentId
-            )
-        );
-      } catch (err) {
-        alert(
-          err.message ||
-            "Failed to delete comment."
-        );
-      }
+  const handleStartEditReview = (
+    review
+  ) => {
+    setEditingReviewId(
+      review.id
+    );
+
+    setReviewRating(
+      Number(review.rating) || 5
+    );
+
+    setReviewComment(
+      review.comment || ""
+    );
+
+    setReviewError("");
+  };
+
+  // =====================================================
+  // CANCEL EDIT
+  // =====================================================
+
+  const handleCancelEditReview =
+    () => {
+      setEditingReviewId(null);
+      setReviewRating(5);
+      setReviewComment("");
+      setReviewError("");
     };
 
   // =====================================================
-  // CURRENT USER
+  // SUBMIT REVIEW
   // =====================================================
 
-  let currentUser = null;
+  const handleSubmitReview = async (
+    event
+  ) => {
+    event.preventDefault();
 
-  try {
-    const storedUser =
+    const token =
       localStorage.getItem(
-        "mtaa_user"
+        "mtaa_token"
       );
 
-    if (storedUser) {
-      currentUser =
-        JSON.parse(storedUser);
+    if (!token) {
+      alert(
+        "Please login to review this property."
+      );
+      return;
     }
-  } catch (err) {
-    console.error(
-      "Failed to read current user:",
-      err
+
+    const numericRating =
+      Number(reviewRating);
+
+    if (
+      !Number.isInteger(
+        numericRating
+      ) ||
+      numericRating < 1 ||
+      numericRating > 5
+    ) {
+      setReviewError(
+        "Please select a rating between 1 and 5 stars."
+      );
+      return;
+    }
+
+    const trimmedReview =
+      reviewComment.trim();
+
+    if (
+      trimmedReview.length > 500
+    ) {
+      setReviewError(
+        "Review cannot exceed 500 characters."
+      );
+      return;
+    }
+
+    try {
+      setReviewSubmitting(true);
+      setReviewError("");
+
+      if (editingReviewId) {
+        await updateReview(
+          token,
+          editingReviewId,
+          {
+            rating:
+              numericRating,
+            comment:
+              trimmedReview,
+          }
+        );
+      } else {
+        await createReview(
+          token,
+          {
+            rating:
+              numericRating,
+            comment:
+              trimmedReview,
+            propertyId,
+          }
+        );
+      }
+
+      handleCancelEditReview();
+
+      await loadReviews();
+    } catch (err) {
+      console.error(
+        "Failed to save review:",
+        err
+      );
+
+      setReviewError(
+        err?.message ||
+          "Failed to save review."
+      );
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  // =====================================================
+  // DELETE REVIEW
+  // =====================================================
+
+  const handleDeleteReview = async (
+    reviewId
+  ) => {
+    const token =
+      localStorage.getItem(
+        "mtaa_token"
+      );
+
+    if (!token) {
+      alert("Please login first.");
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to delete your review?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setReviewError("");
+
+      await deleteReview(
+        token,
+        reviewId
+      );
+
+      if (
+        editingReviewId ===
+        reviewId
+      ) {
+        handleCancelEditReview();
+      }
+
+      await loadReviews();
+    } catch (err) {
+      console.error(
+        "Failed to delete review:",
+        err
+      );
+
+      setReviewError(
+        err?.message ||
+          "Failed to delete review."
+      );
+    }
+  };
+
+  // =====================================================
+  // CHECK WHETHER CURRENT USER ALREADY REVIEWED
+  // =====================================================
+
+  const currentUserReview =
+    reviews.find(
+      (review) =>
+        isOwnReview(review)
     );
-  }
+
+  const isPropertyOwner =
+    currentUser &&
+    property?.owner?.id &&
+    String(
+      currentUser.id ||
+        currentUser.userId
+    ) ===
+      String(property.owner.id);
 
   // =====================================================
   // COMMENT HELPERS
   // =====================================================
 
-  const getCommentUser =
-    (comment) =>
-      comment?.user ||
-      comment?.author ||
-      comment?.createdBy ||
-      {};
+  const getCommentUser = (
+    comment
+  ) =>
+    comment?.user ||
+    comment?.author ||
+    comment?.createdBy ||
+    {};
 
-  const getCommentUserName =
-    (comment) => {
-      const user =
-        getCommentUser(comment);
+  const getCommentUserName = (
+    comment
+  ) => {
+    const user =
+      getCommentUser(comment);
 
-      return (
-        user?.name ||
-        comment?.userName ||
-        comment?.authorName ||
-        "MTAA User"
-      );
-    };
+    return (
+      user?.name ||
+      comment?.userName ||
+      comment?.authorName ||
+      "MTAA User"
+    );
+  };
 
-  const getCommentUserRole =
-    (comment) => {
-      const user =
-        getCommentUser(comment);
+  const getCommentUserRole = (
+    comment
+  ) => {
+    const user =
+      getCommentUser(comment);
 
-      return (
-        user?.role ||
-        comment?.userRole ||
-        "USER"
-      );
-    };
+    return (
+      user?.role ||
+      comment?.userRole ||
+      "USER"
+    );
+  };
 
-  const canDeleteComment =
-    (comment) => {
-      if (
-        !currentUser ||
-        !comment
-      ) {
-        return false;
-      }
-
-      const user =
-        getCommentUser(comment);
-
-      const currentUserId =
-        currentUser.id ||
-        currentUser.userId;
-
-      const commentUserId =
-        comment.userId ||
-        comment.authorId ||
-        user.id ||
-        user.userId;
-
-      if (
-        currentUserId &&
-        commentUserId
-      ) {
-        return (
-          String(
-            currentUserId
-          ) ===
-          String(
-            commentUserId
-          )
-        );
-      }
-
+  const canDeleteComment = (
+    comment
+  ) => {
+    if (
+      !currentUser ||
+      !comment
+    ) {
       return false;
-    };
+    }
 
-  const formatCommentDate =
-    (date) => {
-      if (!date) {
-        return "";
-      }
+    const user =
+      getCommentUser(comment);
 
-      const parsedDate =
-        new Date(date);
+    const currentUserId =
+      currentUser.id ||
+      currentUser.userId;
 
-      if (
-        Number.isNaN(
-          parsedDate.getTime()
-        )
-      ) {
-        return "";
-      }
+    const commentUserId =
+      comment.userId ||
+      comment.authorId ||
+      user.id ||
+      user.userId;
 
-      return parsedDate.toLocaleString(
-        "en-KE",
-        {
-          dateStyle: "medium",
-          timeStyle: "short",
-        }
+    if (
+      currentUserId &&
+      commentUserId
+    ) {
+      return (
+        String(currentUserId) ===
+        String(commentUserId)
       );
-    };
+    }
+
+    return false;
+  };
+
+  const formatCommentDate = (
+    date
+  ) => {
+    if (!date) {
+      return "";
+    }
+
+    const parsedDate =
+      new Date(date);
+
+    if (
+      Number.isNaN(
+        parsedDate.getTime()
+      )
+    ) {
+      return "";
+    }
+
+    return parsedDate.toLocaleString(
+      "en-KE",
+      {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }
+    );
+  };
 
   // =====================================================
   // LOADING
@@ -888,13 +1312,11 @@ function PropertyDetails({
   if (loading) {
     return (
       <div className="property-details-loading">
-
         <div className="loading-spinner"></div>
 
         <p>
           Loading property...
         </p>
-
       </div>
     );
   }
@@ -909,7 +1331,6 @@ function PropertyDetails({
   ) {
     return (
       <div className="property-details-error">
-
         <div className="error-icon">
           ⚠️
         </div>
@@ -924,12 +1345,12 @@ function PropertyDetails({
         </p>
 
         <button
+          type="button"
           className="back-button"
           onClick={onBack}
         >
           ← Go Back
         </button>
-
       </div>
     );
   }
@@ -947,17 +1368,32 @@ function PropertyDetails({
     "PROPERTY OWNER";
 
   // =====================================================
+  // MAP COORDINATES
+  // =====================================================
+
+  const hasCoordinates =
+    Number.isFinite(
+      Number(property.latitude)
+    ) &&
+    Number.isFinite(
+      Number(property.longitude)
+    );
+
+  // =====================================================
   // MAIN UI
   // =====================================================
 
   return (
     <div className="property-details-page">
 
-      {/* HEADER */}
+      {/* =================================================
+          HEADER
+      ================================================= */}
 
       <header className="property-details-header">
 
         <button
+          type="button"
           className="back-button"
           onClick={onBack}
         >
@@ -965,7 +1401,6 @@ function PropertyDetails({
         </button>
 
         <div className="header-brand">
-
           <strong>
             MTAA
           </strong>
@@ -973,16 +1408,19 @@ function PropertyDetails({
           <span>
             Property Details
           </span>
-
         </div>
 
       </header>
 
-      {/* MAIN */}
+      {/* =================================================
+          MAIN
+      ================================================= */}
 
       <main className="property-details-container">
 
-        {/* GALLERY */}
+        {/* =================================================
+            GALLERY
+        ================================================= */}
 
         <section className="property-gallery">
 
@@ -993,12 +1431,12 @@ function PropertyDetails({
               <video
                 className="property-gallery-video"
                 src={getImageUrl(
-                  selectedMedia.media.url
+                  selectedMedia.media?.url
                 )}
                 controls
                 playsInline
                 preload="metadata"
-                aria-label={`${property.title || "Property"} video tour`}
+                aria-label="Property video tour"
               />
             ) : (
               <img
@@ -1013,18 +1451,16 @@ function PropertyDetails({
             )}
 
             <div className="property-image-badge">
-
               🏠{" "}
               {property.propertyType ||
                 "Property"}
-
             </div>
 
             {galleryItems.length >
               1 && (
               <>
-
                 <button
+                  type="button"
                   className="gallery-arrow gallery-arrow-left"
                   onClick={
                     previousImage
@@ -1035,6 +1471,7 @@ function PropertyDetails({
                 </button>
 
                 <button
+                  type="button"
                   className="gallery-arrow gallery-arrow-right"
                   onClick={
                     nextImage
@@ -1045,14 +1482,13 @@ function PropertyDetails({
                 </button>
 
                 <div className="property-image-count">
-
                   {selectedImage +
                     1}{" "}
                   /{" "}
-                  {galleryItems.length}
-
+                  {
+                    galleryItems.length
+                  }
                 </div>
-
               </>
             )}
 
@@ -1068,6 +1504,7 @@ function PropertyDetails({
                   index
                 ) => (
                   <button
+                    type="button"
                     key={
                       item.media?.id ||
                       index
@@ -1104,9 +1541,11 @@ function PropertyDetails({
                         src={getImageUrl(
                           item.media
                         )}
-                        alt={`Property photo ${
-                          index + 1
-                        }`}
+                        alt={
+                          "Property photo " +
+                          (index +
+                            1)
+                        }
                       />
                     )}
 
@@ -1119,7 +1558,9 @@ function PropertyDetails({
 
         </section>
 
-        {/* PROPERTY INFORMATION */}
+        {/* =================================================
+            PROPERTY INFORMATION
+        ================================================= */}
 
         <section className="property-information">
 
@@ -1128,10 +1569,8 @@ function PropertyDetails({
             <div>
 
               <span className="property-type-label">
-
                 {property.propertyType ||
                   "PROPERTY"}
-
               </span>
 
               <h1>
@@ -1139,10 +1578,9 @@ function PropertyDetails({
               </h1>
 
               <p className="property-location">
-
                 📍{" "}
-                {property.location}
-
+                {property.location ||
+                  "Location unavailable"}
               </p>
 
             </div>
@@ -1150,13 +1588,11 @@ function PropertyDetails({
             <div className="property-price">
 
               <strong>
-
                 KSh{" "}
                 {Number(
                   property.price ||
                     0
                 ).toLocaleString()}
-
               </strong>
 
               <span>
@@ -1167,12 +1603,13 @@ function PropertyDetails({
 
           </div>
 
-          {/* FEATURES */}
+          {/* =================================================
+              FEATURES
+          ================================================= */}
 
           <div className="property-features">
 
             <div className="feature-box">
-
               <span>
                 🛏️
               </span>
@@ -1185,11 +1622,9 @@ function PropertyDetails({
               <small>
                 Bedrooms
               </small>
-
             </div>
 
             <div className="feature-box">
-
               <span>
                 🚿
               </span>
@@ -1202,11 +1637,9 @@ function PropertyDetails({
               <small>
                 Bathrooms
               </small>
-
             </div>
 
             <div className="feature-box">
-
               <span>
                 🚗
               </span>
@@ -1219,12 +1652,13 @@ function PropertyDetails({
               <small>
                 Parking
               </small>
-
             </div>
 
           </div>
 
-          {/* DESCRIPTION */}
+          {/* =================================================
+              DESCRIPTION
+          ================================================= */}
 
           <section className="details-section">
 
@@ -1233,15 +1667,15 @@ function PropertyDetails({
             </h2>
 
             <p>
-
               {property.description ||
                 "No description has been provided for this property yet."}
-
             </p>
 
           </section>
 
-          {/* LOCATION */}
+          {/* =================================================
+              LOCATION
+          ================================================= */}
 
           <section className="details-section">
 
@@ -1252,35 +1686,54 @@ function PropertyDetails({
             <div className="location-card">
 
               <strong>
-                {property.location}
+                {property.location ||
+                  "Location unavailable"}
               </strong>
 
-              {property.latitude !==
-                null &&
-                property.latitude !==
-                  undefined &&
-                property.longitude !==
-                  null &&
-                property.longitude !==
-                  undefined && (
-                  <p>
-
-                    Coordinates:{" "}
-
-                    {
-                      property.latitude
-                    }
-
-                    ,{" "}
-
-                    {
-                      property.longitude
-                    }
-
-                  </p>
-                )}
+              {hasCoordinates && (
+                <p>
+                  Coordinates:{" "}
+                  {
+                    property.latitude
+                  }
+                  ,{" "}
+                  {
+                    property.longitude
+                  }
+                </p>
+              )}
 
             </div>
+
+          </section>
+
+          {/* =================================================
+              PROPERTY MAP
+          ================================================= */}
+
+          <section className="details-section">
+
+            <h2>
+              🗺️ Property Map
+            </h2>
+
+            <p>
+              View the property's
+              location on the map.
+            </p>
+
+            <PropertyMap
+              latitude={
+                property.latitude
+              }
+              longitude={
+                property.longitude
+              }
+              title={
+                property.title ||
+                "MTAA Property"
+              }
+            />
 
           </section>
 
@@ -1293,8 +1746,6 @@ function PropertyDetails({
             <h2>
               🧭 Nearby Services
             </h2>
-
-            {/* LOADING */}
 
             {nearbyLoading && (
               <div className="nearby-services-grid">
@@ -1312,7 +1763,9 @@ function PropertyDetails({
                     </strong>
 
                     <span>
-                      Checking real locations around this property
+                      Checking real
+                      locations around
+                      this property
                     </span>
 
                   </div>
@@ -1321,8 +1774,6 @@ function PropertyDetails({
 
               </div>
             )}
-
-            {/* ERROR */}
 
             {!nearbyLoading &&
               nearbyError && (
@@ -1335,7 +1786,8 @@ function PropertyDetails({
                   <div className="nearby-service-body">
 
                     <strong>
-                      Nearby places unavailable
+                      Nearby places
+                      unavailable
                     </strong>
 
                     <span>
@@ -1347,12 +1799,11 @@ function PropertyDetails({
                 </div>
               )}
 
-            {/* NO RESULTS */}
-
             {!nearbyLoading &&
               !nearbyError &&
               nearbyPlaces.length ===
-                0 && (
+                0 &&
+              !hasCoordinates && (
                 <div className="nearby-service-card">
 
                   <div className="nearby-service-icon">
@@ -1362,11 +1813,15 @@ function PropertyDetails({
                   <div className="nearby-service-body">
 
                     <strong>
-                      No nearby places found
+                      No nearby places
+                      found
                     </strong>
 
                     <span>
-                      This property may not have GPS coordinates or nearby services have not been mapped yet.
+                      This property
+                      does not have
+                      valid GPS
+                      coordinates yet.
                     </span>
 
                   </div>
@@ -1374,7 +1829,35 @@ function PropertyDetails({
                 </div>
               )}
 
-            {/* REAL PLACES */}
+            {!nearbyLoading &&
+              !nearbyError &&
+              nearbyPlaces.length ===
+                0 &&
+              hasCoordinates && (
+                <div className="nearby-service-card">
+
+                  <div className="nearby-service-icon">
+                    📍
+                  </div>
+
+                  <div className="nearby-service-body">
+
+                    <strong>
+                      No nearby places
+                      found
+                    </strong>
+
+                    <span>
+                      We could not find
+                      mapped services
+                      around this
+                      property right now.
+                    </span>
+
+                  </div>
+
+                </div>
+              )}
 
             {!nearbyLoading &&
               !nearbyError &&
@@ -1390,17 +1873,22 @@ function PropertyDetails({
                       >
 
                         <div className="nearby-service-icon">
-                          {place.icon}
+                          {place.icon ||
+                            "📍"}
                         </div>
 
                         <div className="nearby-service-body">
 
                           <strong>
-                            {place.name}
+                            {place.name ||
+                              "Nearby place"}
                           </strong>
 
                           <span>
-                            {place.detail}
+                            {place.detail ||
+                              place.label ||
+                              place.category ||
+                              "Nearby service"}
                           </span>
 
                         </div>
@@ -1408,8 +1896,12 @@ function PropertyDetails({
                         <div className="nearby-service-distance">
 
                           <strong>
-                            {place.value}
-                            {place.unit}
+                            {place.value ??
+                              place.distanceKm ??
+                              "—"}
+
+                            {place.unit ||
+                              ""}
                           </strong>
 
                           <small>
@@ -1427,7 +1919,9 @@ function PropertyDetails({
 
           </section>
 
-          {/* OWNER */}
+          {/* =================================================
+              OWNER
+          ================================================= */}
 
           <section className="details-section">
 
@@ -1438,11 +1932,9 @@ function PropertyDetails({
             <div className="owner-card">
 
               <div className="owner-avatar">
-
                 {ownerName
                   .charAt(0)
                   .toUpperCase()}
-
               </div>
 
               <div className="owner-information">
@@ -1458,26 +1950,22 @@ function PropertyDetails({
                 {property.owner
                   ?.email && (
                   <small>
-
                     ✉️{" "}
                     {
                       property.owner
                         .email
                     }
-
                   </small>
                 )}
 
                 {property.owner
                   ?.phone && (
                   <small>
-
                     📞{" "}
                     {
                       property.owner
                         .phone
                     }
-
                   </small>
                 )}
 
@@ -1487,11 +1975,14 @@ function PropertyDetails({
 
           </section>
 
-          {/* ACTIONS */}
+          {/* =================================================
+              ACTIONS
+          ================================================= */}
 
           <section className="property-actions">
 
             <button
+              type="button"
               className="contact-button"
               onClick={
                 handleContactOwner
@@ -1501,6 +1992,7 @@ function PropertyDetails({
             </button>
 
             <button
+              type="button"
               className={
                 "save-button " +
                 (saved
@@ -1517,6 +2009,7 @@ function PropertyDetails({
             </button>
 
             <button
+              type="button"
               className={
                 "like-button " +
                 (liked
@@ -1527,22 +2020,19 @@ function PropertyDetails({
                 handleLike
               }
             >
-
               {liked
                 ? "❤️"
                 : "🤍"}{" "}
-
               Like
 
-              {likeCount >
-                0 &&
+              {likeCount > 0 &&
                 " (" +
                   likeCount +
                   ")"}
-
             </button>
 
             <button
+              type="button"
               className="share-button"
               onClick={
                 handleShare
@@ -1550,6 +2040,341 @@ function PropertyDetails({
             >
               📤 Share
             </button>
+
+          </section>
+
+          {/* =================================================
+              REVIEWS & RATINGS
+          ================================================= */}
+
+          <section className="details-section reviews-section">
+
+            <div className="reviews-header">
+
+              <div>
+
+                <h2>
+                  ⭐ Reviews & Ratings
+                </h2>
+
+                <p>
+                  See what people think
+                  about this property.
+                </p>
+
+              </div>
+
+              <div className="review-summary">
+
+                <strong className="review-average">
+                  {Number(
+                    reviewSummary.averageRating ||
+                      0
+                  ).toFixed(1)}
+                </strong>
+
+                {renderStars(
+                  reviewSummary.averageRating
+                )}
+
+                <span>
+                  {reviewSummary.totalReviews}{" "}
+                  {reviewSummary.totalReviews ===
+                  1
+                    ? "Review"
+                    : "Reviews"}
+                </span>
+
+              </div>
+
+            </div>
+
+            {/* REVIEW FORM */}
+
+            {currentUser ? (
+              isPropertyOwner ? (
+                <div className="review-notice">
+                  🏠 You cannot review
+                  your own property.
+                </div>
+              ) : currentUserReview &&
+                !editingReviewId ? (
+                <div className="review-notice">
+                  ✅ You have already
+                  reviewed this property.
+                  You can edit your
+                  review below.
+                </div>
+              ) : (
+                <form
+                  className="review-form"
+                  onSubmit={
+                    handleSubmitReview
+                  }
+                >
+
+                  <div className="review-form-header">
+
+                    <div>
+
+                      <h3>
+                        {editingReviewId
+                          ? "Edit Your Review"
+                          : "Leave a Review"}
+                      </h3>
+
+                      <p>
+                        Rate this property
+                        from 1 to 5 stars.
+                      </p>
+
+                    </div>
+
+                    <div className="review-rating-picker">
+
+                      {renderStars(
+                        reviewRating,
+                        true
+                      )}
+
+                    </div>
+
+                  </div>
+
+                  <textarea
+                    value={
+                      reviewComment
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setReviewComment(
+                        event.target
+                          .value
+                      )
+                    }
+                    placeholder="Write your review about this property..."
+                    maxLength={500}
+                    disabled={
+                      reviewSubmitting
+                    }
+                  />
+
+                  <div className="review-form-footer">
+
+                    <span>
+                      {
+                        reviewComment.length
+                      }
+                      /500
+                    </span>
+
+                    <div className="review-form-actions">
+
+                      {editingReviewId && (
+                        <button
+                          type="button"
+                          className="review-cancel-button"
+                          onClick={
+                            handleCancelEditReview
+                          }
+                          disabled={
+                            reviewSubmitting
+                          }
+                        >
+                          Cancel
+                        </button>
+                      )}
+
+                      <button
+                        type="submit"
+                        className="review-submit-button"
+                        disabled={
+                          reviewSubmitting
+                        }
+                      >
+                        {reviewSubmitting
+                          ? "Saving..."
+                          : editingReviewId
+                            ? "Update Review"
+                            : "Submit Review"}
+                      </button>
+
+                    </div>
+
+                  </div>
+
+                </form>
+              )
+            ) : (
+              <div className="review-notice">
+                🔐 Please login to rate
+                and review this property.
+              </div>
+            )}
+
+            {reviewError && (
+              <div className="review-error">
+                {reviewError}
+              </div>
+            )}
+
+            {/* REVIEWS LIST */}
+
+            <div className="reviews-list">
+
+              {reviewsLoading ? (
+                <div className="reviews-loading">
+                  Loading reviews...
+                </div>
+              ) : reviews.length ===
+                0 ? (
+                <div className="reviews-empty">
+
+                  <div>
+                    ⭐
+                  </div>
+
+                  <strong>
+                    No reviews yet
+                  </strong>
+
+                  <p>
+                    Be the first person
+                    to review this
+                    property.
+                  </p>
+
+                </div>
+              ) : (
+                reviews.map(
+                  (
+                    review,
+                    index
+                  ) => {
+                    const authorName =
+                      getReviewAuthorName(
+                        review
+                      );
+
+                    const authorRole =
+                      getReviewAuthorRole(
+                        review
+                      );
+
+                    const reviewDate =
+                      review.createdAt ||
+                      review.created_at ||
+                      review.date;
+
+                    return (
+                      <article
+                        className="review-card"
+                        key={
+                          review.id ||
+                          index
+                        }
+                      >
+
+                        <div className="review-avatar">
+                          {authorName
+                            .charAt(
+                              0
+                            )
+                            .toUpperCase()}
+                        </div>
+
+                        <div className="review-content">
+
+                          <div className="review-top">
+
+                            <div className="review-user">
+
+                              <strong>
+                                {
+                                  authorName
+                                }
+                              </strong>
+
+                              <span>
+                                {
+                                  authorRole
+                                }
+                              </span>
+
+                            </div>
+
+                            <div className="review-card-rating">
+
+                              {renderStars(
+                                review.rating
+                              )}
+
+                            </div>
+
+                          </div>
+
+                          {review.comment && (
+                            <p>
+                              {
+                                review.comment
+                              }
+                            </p>
+                          )}
+
+                          <div className="review-card-footer">
+
+                            {reviewDate && (
+                              <small>
+                                {formatReviewDate(
+                                  reviewDate
+                                )}
+                              </small>
+                            )}
+
+                            {isOwnReview(
+                              review
+                            ) && (
+                              <div className="review-owner-actions">
+
+                                <button
+                                  type="button"
+                                  className="edit-review-button"
+                                  onClick={() =>
+                                    handleStartEditReview(
+                                      review
+                                    )
+                                  }
+                                >
+                                  ✏️ Edit
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="delete-review-button"
+                                  onClick={() =>
+                                    handleDeleteReview(
+                                      review.id
+                                    )
+                                  }
+                                >
+                                  🗑️ Delete
+                                </button>
+
+                              </div>
+                            )}
+
+                          </div>
+
+                        </div>
+
+                      </article>
+                    );
+                  }
+                )
+              )}
+
+            </div>
 
           </section>
 
@@ -1568,20 +2393,18 @@ function PropertyDetails({
                 </h2>
 
                 <p>
-                  Share your thoughts or ask about this property.
+                  Share your thoughts or
+                  ask about this property.
                 </p>
 
               </div>
 
               <span className="comments-count">
-
                 {comments.length}{" "}
-
                 {comments.length ===
                 1
                   ? "Comment"
                   : "Comments"}
-
               </span>
 
             </div>
@@ -1596,10 +2419,10 @@ function PropertyDetails({
             >
 
               <textarea
-                value={
-                  commentText
-                }
-                onChange={(event) =>
+                value={commentText}
+                onChange={(
+                  event
+                ) =>
                   setCommentText(
                     event.target
                       .value
@@ -1615,12 +2438,10 @@ function PropertyDetails({
               <div className="comment-form-footer">
 
                 <span>
-
                   {
                     commentText.length
                   }
                   /500
-
                 </span>
 
                 <button
@@ -1630,11 +2451,9 @@ function PropertyDetails({
                     !commentText.trim()
                   }
                 >
-
                   {commentSubmitting
                     ? "Posting..."
                     : "Post Comment"}
-
                 </button>
 
               </div>
@@ -1668,7 +2487,9 @@ function PropertyDetails({
                   </strong>
 
                   <p>
-                    Be the first person to comment on this property.
+                    Be the first person
+                    to comment on this
+                    property.
                   </p>
 
                 </div>
@@ -1714,13 +2535,11 @@ function PropertyDetails({
                       >
 
                         <div className="comment-avatar">
-
                           {userName
                             .charAt(
                               0
                             )
                             .toUpperCase()}
-
                         </div>
 
                         <div className="comment-content">
@@ -1730,15 +2549,11 @@ function PropertyDetails({
                             <div className="comment-user">
 
                               <strong>
-                                {
-                                  userName
-                                }
+                                {userName}
                               </strong>
 
                               <span>
-                                {
-                                  userRole
-                                }
+                                {userRole}
                               </span>
 
                             </div>
@@ -1747,6 +2562,7 @@ function PropertyDetails({
                               comment
                             ) && (
                               <button
+                                type="button"
                                 className="delete-comment-button"
                                 onClick={() =>
                                   handleDeleteComment(
@@ -1768,11 +2584,9 @@ function PropertyDetails({
 
                           {commentDate && (
                             <small className="comment-date">
-
                               {formatCommentDate(
                                 commentDate
                               )}
-
                             </small>
                           )}
 
@@ -1789,9 +2603,7 @@ function PropertyDetails({
           </section>
 
         </section>
-
       </main>
-
     </div>
   );
 }

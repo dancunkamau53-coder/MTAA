@@ -7,20 +7,22 @@ datasource db {
 }
 
 model User {
-  id                      String           @id @default(cuid())
-  name                    String
-  email                   String           @unique
-  phone                   String?
-  password                String
-  role                    UserRole         @default(USER)
-  status                  AccountStatus    @default(ACTIVE)
-  createdAt               DateTime         @default(now())
-  updatedAt               DateTime         @updatedAt
-  comments                Comment[]
-  likes                   Like[]
-  notifications           Notification[]
-  properties              Property[]
-  savedProperties         SavedProperty[]
+  id        String        @id @default(cuid())
+  name      String
+  email     String        @unique
+  phone     String?
+  password  String
+  role      UserRole      @default(USER)
+  status    AccountStatus @default(ACTIVE)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  comments        Comment[]
+  likes           Like[]
+  notifications   Notification[]
+  properties      Property[]
+  savedProperties SavedProperty[]
+
   serviceBlocksReceived   ServiceBlock[]   @relation("ServiceBlockBlocked")
   serviceBlocksMade       ServiceBlock[]   @relation("ServiceBlockBlocker")
   serviceMessages         ServiceMessage[] @relation("ServiceMessageSender")
@@ -28,10 +30,13 @@ model User {
   serviceReports          ServiceReport[]  @relation("ServiceReportReporter")
   customerServiceRequests ServiceRequest[] @relation("ServiceRequestCustomer")
   customerServiceReviews  ServiceReview[]  @relation("ServiceReviewCustomer")
+
+  reviewsWritten  Review[] @relation("ReviewAuthor")
+  reviewsReceived Review[] @relation("ReviewTargetUser")
 }
 
 model Property {
-  id           String          @id @default(cuid())
+  id           String   @id @default(cuid())
   title        String
   description  String?
   location     String
@@ -39,19 +44,21 @@ model Property {
   bedrooms     Int?
   bathrooms    Int?
   imageUrl     String?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   ownerId      String
   latitude     Float?
   longitude    Float?
   parking      Int?
   propertyType String?
-  comments     Comment[]
-  likes        Like[]
-  owner        User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  images       PropertyImage[]
-  videos       PropertyVideo[]
-  savedBy      SavedProperty[]
+
+  comments Comment[]
+  likes    Like[]
+  owner    User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  images   PropertyImage[]
+  videos   PropertyVideo[]
+  savedBy  SavedProperty[]
+  reviews  Review[]
 }
 
 model PropertyImage {
@@ -60,7 +67,8 @@ model PropertyImage {
   isCover    Boolean  @default(false)
   createdAt  DateTime @default(now())
   propertyId String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
 
 model PropertyVideo {
@@ -70,7 +78,8 @@ model PropertyVideo {
   originalName String
   createdAt    DateTime @default(now())
   propertyId   String
-  property     Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@index([propertyId, createdAt])
 }
@@ -80,8 +89,9 @@ model Like {
   createdAt  DateTime @default(now())
   userId     String
   propertyId String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, propertyId])
   @@index([propertyId])
@@ -93,8 +103,9 @@ model SavedProperty {
   createdAt  DateTime @default(now())
   userId     String
   propertyId String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, propertyId])
   @@index([propertyId])
@@ -108,8 +119,9 @@ model Comment {
   updatedAt  DateTime @updatedAt
   userId     String
   propertyId String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([propertyId])
   @@index([userId])
@@ -123,7 +135,8 @@ model Notification {
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }
@@ -142,28 +155,30 @@ model ServiceProvider {
   verificationRequestedAt DateTime?
   verifiedAt              DateTime?
   verificationNote        String?
-  services                OfferedService[]
-  user                    User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reports                 ServiceReport[]
-  requests                ServiceRequest[]
-  reviews                 ServiceReview[]
+
+  services OfferedService[]
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reports  ServiceReport[]
+  requests ServiceRequest[]
+  reviews  ServiceReview[]
 
   @@index([verificationStatus, verificationRequestedAt])
 }
 
 model OfferedService {
-  id          String           @id @default(cuid())
+  id          String   @id @default(cuid())
   title       String
   description String
   price       Float
-  priceUnit   String           @default("per job")
-  active      Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  priceUnit   String   @default("per job")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   providerId  String
-  provider    ServiceProvider  @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  reports     ServiceReport[]
-  requests    ServiceRequest[]
+
+  provider ServiceProvider  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  reports  ServiceReport[]
+  requests ServiceRequest[]
 
   @@index([providerId, active])
 }
@@ -181,27 +196,29 @@ model ServiceRequest {
   quotedPrice Float?
   proposedAt  DateTime?
   quoteNote   String?
-  messages    ServiceMessage[]
-  customer    User                 @relation("ServiceRequestCustomer", fields: [customerId], references: [id], onDelete: Cascade)
-  provider    ServiceProvider      @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  service     OfferedService       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  review      ServiceReview?
+
+  messages ServiceMessage[]
+  customer User             @relation("ServiceRequestCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  provider ServiceProvider  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  service  OfferedService   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  review   ServiceReview?
 
   @@index([customerId, createdAt])
   @@index([providerId, status, createdAt])
 }
 
 model ServiceReview {
-  id         String          @id @default(cuid())
+  id         String   @id @default(cuid())
   rating     Int
   comment    String?
-  createdAt  DateTime        @default(now())
-  requestId  String          @unique
+  createdAt  DateTime @default(now())
+  requestId  String   @unique
   customerId String
   providerId String
-  customer   User            @relation("ServiceReviewCustomer", fields: [customerId], references: [id], onDelete: Cascade)
-  provider   ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  request    ServiceRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  customer User            @relation("ServiceReviewCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  provider ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  request  ServiceRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   @@index([providerId, createdAt])
 }
@@ -217,22 +234,24 @@ model ServiceReport {
   reporterId String
   providerId String
   serviceId  String
-  provider   ServiceProvider     @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  reporter   User                @relation("ServiceReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  service    OfferedService      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  provider ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  reporter User            @relation("ServiceReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  service  OfferedService  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@index([status, createdAt])
   @@index([providerId, status])
 }
 
 model ServiceMessage {
-  id        String         @id @default(cuid())
+  id        String   @id @default(cuid())
   content   String
-  createdAt DateTime       @default(now())
+  createdAt DateTime @default(now())
   requestId String
   senderId  String
-  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  sender    User           @relation("ServiceMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  request ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  sender  User           @relation("ServiceMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([requestId, createdAt])
 }
@@ -242,11 +261,32 @@ model ServiceBlock {
   createdAt     DateTime @default(now())
   blockerId     String
   blockedUserId String
-  blockedUser   User     @relation("ServiceBlockBlocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
-  blocker       User     @relation("ServiceBlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+
+  blockedUser User @relation("ServiceBlockBlocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  blocker     User @relation("ServiceBlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
 
   @@unique([blockerId, blockedUserId])
   @@index([blockedUserId, createdAt])
+}
+
+model Review {
+  id           String   @id @default(cuid())
+  rating       Int
+  comment      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  authorId     String
+  propertyId   String?
+  targetUserId String?
+
+  author     User      @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  targetUser User?     @relation("ReviewTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@unique([authorId, propertyId])
+  @@index([propertyId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([authorId, createdAt])
 }
 
 enum AccountStatus {
@@ -260,8 +300,8 @@ enum UserRole {
   OWNER
   AGENT
   CARETAKER
-  ADMIN
   SERVICE_PROVIDER
+  ADMIN
 }
 
 enum ServiceRequestStatus {

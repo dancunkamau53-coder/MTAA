@@ -14,6 +14,7 @@ const propertyRoutes = require("./routes/propertyRoutes");
 const propertyInteractionRoutes = require("./routes/propertyInteractionRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const serviceRoutes = require("./routes/serviceRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 
 // ==========================================
 // APP
@@ -36,7 +37,11 @@ app.use(
 
 app.use(express.json());
 
-app.use(express.urlencoded({ extended: true }));
+app.use(
+  express.urlencoded({
+    extended: true,
+  })
+);
 
 // ==========================================
 // UPLOADS
@@ -90,10 +95,18 @@ app.use(
   userRoutes
 );
 
+// ==========================================
+// NOTIFICATION ROUTES
+// ==========================================
+
 app.use(
   "/api/notifications",
   notificationRoutes
 );
+
+// ==========================================
+// SERVICE ROUTES
+// ==========================================
 
 app.use(
   "/api/services",
@@ -111,6 +124,7 @@ app.use(
 
 // ==========================================
 // PROPERTY INTERACTION ROUTES
+//
 // Likes
 // Saves
 // Comments
@@ -119,6 +133,21 @@ app.use(
 app.use(
   "/api/properties",
   propertyInteractionRoutes
+);
+
+// ==========================================
+// REVIEWS & RATINGS
+//
+// Add review
+// Get property reviews
+// Get user reviews
+// Edit review
+// Delete review
+// ==========================================
+
+app.use(
+  "/api/reviews",
+  reviewRoutes
 );
 
 // ==========================================
@@ -196,6 +225,10 @@ const server = app.listen(
 
     console.log(
       "💬 Comments: ENABLED"
+    );
+
+    console.log(
+      "⭐ Reviews: ENABLED"
     );
 
     console.log(

@@ -2,7 +2,11 @@ import { useState } from "react";
 import { loginUser, registerUser } from "./services/api";
 import "./Auth.css";
 
-function Auth({ onLogin, initialMode = "login", initialRole = "USER" }) {
+function Auth({
+  onLogin,
+  initialMode = "login",
+  initialRole = "USER",
+}) {
   const [mode, setMode] = useState(initialMode);
 
   const [form, setForm] = useState({
@@ -50,6 +54,7 @@ function Auth({ onLogin, initialMode = "login", initialRole = "USER" }) {
       }
 
       localStorage.setItem("mtaa_token", data.token);
+
       localStorage.setItem(
         "mtaa_user",
         JSON.stringify(data.user)
@@ -198,6 +203,7 @@ function Auth({ onLogin, initialMode = "login", initialRole = "USER" }) {
         </form>
 
         <div className="auth-switch">
+
           <span>
             {mode === "login"
               ? "Don't have an account?"
@@ -212,14 +218,17 @@ function Auth({ onLogin, initialMode = "login", initialRole = "USER" }) {
               ? "Create Account"
               : "Login"}
           </button>
+
         </div>
 
         <div className="auth-footer">
+
           <span>🏠</span>
 
           <p>
             Find your place. Find your community.
           </p>
+
         </div>
 
       </div>

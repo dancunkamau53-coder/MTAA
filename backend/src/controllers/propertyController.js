@@ -3,6 +3,7 @@ const prisma = require("../lib/prisma");
 // =====================================================
 // CREATE PROPERTY
 // =====================================================
+
 const createProperty = async (req, res) => {
   try {
     const {
@@ -230,11 +231,193 @@ const createProperty = async (req, res) => {
 
 // =====================================================
 // GET ALL PROPERTIES
+// GET /api/properties
 // =====================================================
+
 const getProperties = async (req, res) => {
   try {
+    const {
+      location,
+      propertyType,
+      minPrice,
+      maxPrice,
+      bedrooms,
+      bathrooms,
+      parking,
+    } = req.query;
+
+    const where = {};
+
+    // =================================================
+    // LOCATION FILTER
+    // =================================================
+
+    if (
+      location !== undefined &&
+      String(location).trim() !== ""
+    ) {
+      where.location = {
+        contains: String(location).trim(),
+        mode: "insensitive",
+      };
+    }
+
+    // =================================================
+    // PROPERTY TYPE FILTER
+    // =================================================
+
+    if (
+      propertyType !== undefined &&
+      String(propertyType).trim() !== ""
+    ) {
+      where.propertyType = {
+        contains: String(propertyType).trim(),
+        mode: "insensitive",
+      };
+    }
+
+    // =================================================
+    // PRICE FILTER
+    // =================================================
+
+    const priceFilter = {};
+
+    if (
+      minPrice !== undefined &&
+      String(minPrice).trim() !== ""
+    ) {
+      const numericMinPrice = Number(minPrice);
+
+      if (!Number.isFinite(numericMinPrice)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Minimum price must be a valid number.",
+        });
+      }
+
+      priceFilter.gte = numericMinPrice;
+    }
+
+    if (
+      maxPrice !== undefined &&
+      String(maxPrice).trim() !== ""
+    ) {
+      const numericMaxPrice = Number(maxPrice);
+
+      if (!Number.isFinite(numericMaxPrice)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Maximum price must be a valid number.",
+        });
+      }
+
+      priceFilter.lte = numericMaxPrice;
+    }
+
+    if (
+      priceFilter.gte !== undefined &&
+      priceFilter.lte !== undefined &&
+      priceFilter.gte > priceFilter.lte
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Minimum price cannot be greater than maximum price.",
+      });
+    }
+
+    if (Object.keys(priceFilter).length > 0) {
+      where.price = priceFilter;
+    }
+
+    // =================================================
+    // BEDROOM FILTER
+    // =================================================
+
+    if (
+      bedrooms !== undefined &&
+      String(bedrooms).trim() !== ""
+    ) {
+      const numericBedrooms = Number(bedrooms);
+
+      if (
+        !Number.isInteger(numericBedrooms) ||
+        numericBedrooms < 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Bedrooms must be a valid whole number.",
+        });
+      }
+
+      where.bedrooms = {
+        gte: numericBedrooms,
+      };
+    }
+
+    // =================================================
+    // BATHROOM FILTER
+    // =================================================
+
+    if (
+      bathrooms !== undefined &&
+      String(bathrooms).trim() !== ""
+    ) {
+      const numericBathrooms = Number(bathrooms);
+
+      if (
+        !Number.isInteger(numericBathrooms) ||
+        numericBathrooms < 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Bathrooms must be a valid whole number.",
+        });
+      }
+
+      where.bathrooms = {
+        gte: numericBathrooms,
+      };
+    }
+
+    // =================================================
+    // PARKING FILTER
+    // =================================================
+
+    if (
+      parking !== undefined &&
+      String(parking).trim() !== ""
+    ) {
+      const numericParking = Number(parking);
+
+      if (
+        !Number.isInteger(numericParking) ||
+        numericParking < 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Parking must be a valid whole number.",
+        });
+      }
+
+      where.parking = {
+        gte: numericParking,
+      };
+    }
+
+    // =================================================
+    // FETCH PROPERTIES
+    // =================================================
+
     const properties =
       await prisma.property.findMany({
+        where,
+
         orderBy: {
           createdAt: "desc",
         },
@@ -266,6 +449,19 @@ const getProperties = async (req, res) => {
 
     return res.status(200).json({
       success: true,
+
+      filters: {
+        location: location || null,
+        propertyType: propertyType || null,
+        minPrice: minPrice || null,
+        maxPrice: maxPrice || null,
+        bedrooms: bedrooms || null,
+        bathrooms: bathrooms || null,
+        parking: parking || null,
+      },
+
+      count: properties.length,
+
       properties,
     });
   } catch (error) {
@@ -286,10 +482,8 @@ const getProperties = async (req, res) => {
 // =====================================================
 // GET SINGLE PROPERTY
 // =====================================================
-const getPropertyById = async (
-  req,
-  res
-) => {
+
+const getPropertyById = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -363,10 +557,8 @@ const getPropertyById = async (
 // =====================================================
 // UPDATE PROPERTY
 // =====================================================
-const updateProperty = async (
-  req,
-  res
-) => {
+
+const updateProperty = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -409,10 +601,7 @@ const updateProperty = async (
       });
     }
 
-    if (
-      existingProperty.ownerId !==
-      ownerId
-    ) {
+    if (existingProperty.ownerId !== ownerId) {
       return res.status(403).json({
         success: false,
         message:
@@ -421,6 +610,10 @@ const updateProperty = async (
     }
 
     const updateData = {};
+
+    // =================================================
+    // TITLE
+    // =================================================
 
     if (title !== undefined) {
       if (!String(title).trim()) {
@@ -431,9 +624,12 @@ const updateProperty = async (
         });
       }
 
-      updateData.title =
-        String(title).trim();
+      updateData.title = String(title).trim();
     }
+
+    // =================================================
+    // DESCRIPTION
+    // =================================================
 
     if (description !== undefined) {
       updateData.description =
@@ -442,6 +638,10 @@ const updateProperty = async (
           ? String(description).trim()
           : null;
     }
+
+    // =================================================
+    // LOCATION
+    // =================================================
 
     if (location !== undefined) {
       if (!String(location).trim()) {
@@ -456,6 +656,10 @@ const updateProperty = async (
         String(location).trim();
     }
 
+    // =================================================
+    // PROPERTY TYPE
+    // =================================================
+
     if (propertyType !== undefined) {
       updateData.propertyType =
         propertyType &&
@@ -464,23 +668,21 @@ const updateProperty = async (
           : null;
     }
 
+    // =================================================
+    // PRICE
+    // =================================================
+
     if (price !== undefined) {
       if (price === "") {
         return res.status(400).json({
           success: false,
-          message:
-            "Property price is required.",
+          message: "Property price is required.",
         });
       }
 
-      const numericPrice =
-        Number(price);
+      const numericPrice = Number(price);
 
-      if (
-        !Number.isFinite(
-          numericPrice
-        )
-      ) {
+      if (!Number.isFinite(numericPrice)) {
         return res.status(400).json({
           success: false,
           message:
@@ -488,22 +690,20 @@ const updateProperty = async (
         });
       }
 
-      updateData.price =
-        numericPrice;
+      updateData.price = numericPrice;
     }
+
+    // =================================================
+    // BEDROOMS
+    // =================================================
 
     if (bedrooms !== undefined) {
       if (bedrooms === "") {
         updateData.bedrooms = null;
       } else {
-        const numericBedrooms =
-          Number(bedrooms);
+        const numericBedrooms = Number(bedrooms);
 
-        if (
-          !Number.isInteger(
-            numericBedrooms
-          )
-        ) {
+        if (!Number.isInteger(numericBedrooms)) {
           return res.status(400).json({
             success: false,
             message:
@@ -511,10 +711,13 @@ const updateProperty = async (
           });
         }
 
-        updateData.bedrooms =
-          numericBedrooms;
+        updateData.bedrooms = numericBedrooms;
       }
     }
+
+    // =================================================
+    // BATHROOMS
+    // =================================================
 
     if (bathrooms !== undefined) {
       if (bathrooms === "") {
@@ -523,11 +726,7 @@ const updateProperty = async (
         const numericBathrooms =
           Number(bathrooms);
 
-        if (
-          !Number.isInteger(
-            numericBathrooms
-          )
-        ) {
+        if (!Number.isInteger(numericBathrooms)) {
           return res.status(400).json({
             success: false,
             message:
@@ -540,18 +739,17 @@ const updateProperty = async (
       }
     }
 
+    // =================================================
+    // PARKING
+    // =================================================
+
     if (parking !== undefined) {
       if (parking === "") {
         updateData.parking = null;
       } else {
-        const numericParking =
-          Number(parking);
+        const numericParking = Number(parking);
 
-        if (
-          !Number.isInteger(
-            numericParking
-          )
-        ) {
+        if (!Number.isInteger(numericParking)) {
           return res.status(400).json({
             success: false,
             message:
@@ -559,23 +757,21 @@ const updateProperty = async (
           });
         }
 
-        updateData.parking =
-          numericParking;
+        updateData.parking = numericParking;
       }
     }
+
+    // =================================================
+    // LATITUDE
+    // =================================================
 
     if (latitude !== undefined) {
       if (latitude === "") {
         updateData.latitude = null;
       } else {
-        const numericLatitude =
-          Number(latitude);
+        const numericLatitude = Number(latitude);
 
-        if (
-          !Number.isFinite(
-            numericLatitude
-          )
-        ) {
+        if (!Number.isFinite(numericLatitude)) {
           return res.status(400).json({
             success: false,
             message:
@@ -583,10 +779,13 @@ const updateProperty = async (
           });
         }
 
-        updateData.latitude =
-          numericLatitude;
+        updateData.latitude = numericLatitude;
       }
     }
+
+    // =================================================
+    // LONGITUDE
+    // =================================================
 
     if (longitude !== undefined) {
       if (longitude === "") {
@@ -595,11 +794,7 @@ const updateProperty = async (
         const numericLongitude =
           Number(longitude);
 
-        if (
-          !Number.isFinite(
-            numericLongitude
-          )
-        ) {
+        if (!Number.isFinite(numericLongitude)) {
           return res.status(400).json({
             success: false,
             message:
@@ -612,6 +807,10 @@ const updateProperty = async (
       }
     }
 
+    // =================================================
+    // IMAGE URL
+    // =================================================
+
     if (imageUrl !== undefined) {
       updateData.imageUrl =
         imageUrl &&
@@ -619,6 +818,10 @@ const updateProperty = async (
           ? String(imageUrl).trim()
           : null;
     }
+
+    // =================================================
+    // UPDATE
+    // =================================================
 
     const property =
       await prisma.property.update({
@@ -668,10 +871,8 @@ const updateProperty = async (
 // =====================================================
 // DELETE PROPERTY
 // =====================================================
-const deleteProperty = async (
-  req,
-  res
-) => {
+
+const deleteProperty = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -700,9 +901,7 @@ const deleteProperty = async (
       });
     }
 
-    if (
-      property.ownerId !== ownerId
-    ) {
+    if (property.ownerId !== ownerId) {
       return res.status(403).json({
         success: false,
         message:
@@ -740,10 +939,8 @@ const deleteProperty = async (
 // =====================================================
 // GET MY PROPERTIES
 // =====================================================
-const getMyProperties = async (
-  req,
-  res
-) => {
+
+const getMyProperties = async (req, res) => {
   try {
     const ownerId =
       req.user?.id ||
@@ -814,6 +1011,7 @@ const getMyProperties = async (
 // =====================================================
 // EXPORTS
 // =====================================================
+
 module.exports = {
   createProperty,
   getProperties,
