@@ -51,6 +51,7 @@ model Property {
   longitude    Float?
   parking      Int?
   propertyType String?
+  furnished    Boolean?
 
   comments Comment[]
   likes    Like[]

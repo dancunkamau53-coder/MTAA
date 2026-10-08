@@ -61,6 +61,7 @@ function App() {
   const [minBedrooms, setMinBedrooms] = useState("");
   const [minBathrooms, setMinBathrooms] = useState("");
   const [minParking, setMinParking] = useState("");
+  const [furnishedFilter, setFurnishedFilter] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("mtaa_token");
@@ -162,6 +163,10 @@ function App() {
           filters.parking = minParking;
         }
 
+        if (furnishedFilter !== "") {
+          filters.furnished = furnishedFilter;
+        }
+
         console.log("MTAA property filters:", filters);
 
         const data = await getProperties(filters);
@@ -194,6 +199,7 @@ function App() {
     minBedrooms,
     minBathrooms,
     minParking,
+    furnishedFilter,
   ]);
 
   /*
@@ -221,6 +227,7 @@ function App() {
     setMinBedrooms("");
     setMinBathrooms("");
     setMinParking("");
+    setFurnishedFilter("");
   };
 
   const handleCategoryJump = (category) => {
@@ -886,6 +893,21 @@ function App() {
                 }}
                 placeholder="1+"
               />
+            </div>
+
+            <div className="filter-group">
+              <label>Furnished</label>
+
+              <select
+                value={furnishedFilter}
+                onChange={(event) => {
+                  setFurnishedFilter(event.target.value);
+                }}
+              >
+                <option value="">Any</option>
+                <option value="true">Furnished</option>
+                <option value="false">Unfurnished</option>
+              </select>
             </div>
 
             <div className="filter-actions">

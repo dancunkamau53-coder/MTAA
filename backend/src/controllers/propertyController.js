@@ -245,6 +245,7 @@ const getProperties = async (req, res) => {
       bedrooms,
       bathrooms,
       parking,
+      furnished,
     } = req.query;
 
     const where = {};
@@ -438,6 +439,30 @@ const getProperties = async (req, res) => {
     }
 
     // =================================================
+    // FURNISHED FILTER
+    // =================================================
+
+    if (
+      furnished !== undefined &&
+      String(furnished).trim() !== ""
+    ) {
+      const normalizedFurnished = String(furnished)
+        .trim()
+        .toLowerCase();
+
+      if (normalizedFurnished === "true") {
+        where.furnished = true;
+      } else if (normalizedFurnished === "false") {
+        where.furnished = false;
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: "Furnished must be true or false.",
+        });
+      }
+    }
+
+    // =================================================
     // FETCH PROPERTIES
     // =================================================
 
@@ -486,6 +511,7 @@ const getProperties = async (req, res) => {
         bedrooms: bedrooms || null,
         bathrooms: bathrooms || null,
         parking: parking || null,
+        furnished: furnished || null,
       },
 
       count: properties.length,
