@@ -239,6 +239,7 @@ const getProperties = async (req, res) => {
     const {
       location,
       propertyType,
+      search,
       minPrice,
       maxPrice,
       bedrooms,
@@ -247,6 +248,32 @@ const getProperties = async (req, res) => {
     } = req.query;
 
     const where = {};
+
+    // =================================================
+    // GENERAL PROPERTY SEARCH
+    // =================================================
+
+    const normalizedSearch = String(search || "").trim();
+
+    if (normalizedSearch !== "") {
+      const ignoredWords = new Set(["in", "near", "at", "around", "for", "the", "a", "an", "and", "or", "to", "with"]);
+
+      const searchTerms = normalizedSearch
+        .split(/\s+/)
+        .map((term) => term.trim())
+        .filter((term) => term !== "" && !ignoredWords.has(term.toLowerCase()));
+
+      if (searchTerms.length > 0) {
+        where.AND = searchTerms.map((term) => ({
+          OR: [
+            { title: { contains: term, mode: "insensitive" } },
+            { description: { contains: term, mode: "insensitive" } },
+            { location: { contains: term, mode: "insensitive" } },
+            { propertyType: { contains: term, mode: "insensitive" } },
+          ],
+        }));
+      }
+    }
 
     // =================================================
     // LOCATION FILTER
@@ -451,6 +478,7 @@ const getProperties = async (req, res) => {
       success: true,
 
       filters: {
+        search: search || null,
         location: location || null,
         propertyType: propertyType || null,
         minPrice: minPrice || null,
