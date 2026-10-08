@@ -123,6 +123,17 @@ function App() {
 
         const filters = {};
 
+        /*
+         * GENERAL PROPERTY SEARCH
+         * Sends searches such as:
+         * - House in Kasarani
+         * - Apartment in Ruiru
+         * - Hostel near KU
+         */
+        if (searchQuery.trim() !== "") {
+          filters.search = searchQuery.trim();
+        }
+
         if (locationQuery.trim() !== "") {
           filters.location = locationQuery.trim();
         }
@@ -175,6 +186,7 @@ function App() {
     loadProperties();
   }, [
     propertyLoadAttempt,
+    searchQuery,
     locationQuery,
     propertyTypeFilter,
     minPrice,
@@ -184,27 +196,21 @@ function App() {
     minParking,
   ]);
 
+  /*
+   * Search is now handled by the backend.
+   *
+   * We intentionally do not run the old local phrase
+   * filtering here because a search such as:
+   *
+   * "House in Kasarani"
+   *
+   * should be interpreted as multiple search terms
+   * by the backend rather than requiring the complete
+   * phrase to exist inside one property field.
+   */
   const filteredProperties = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-
-    return properties.filter((property) => {
-      if (!normalizedQuery) {
-        return true;
-      }
-
-      const searchText = [
-        property.title,
-        property.description,
-        property.location,
-        property.propertyType,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      return searchText.includes(normalizedQuery);
-    });
-  }, [properties, searchQuery]);
+    return properties;
+  }, [properties]);
 
   const clearFilters = () => {
     setSearchQuery("");
