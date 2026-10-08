@@ -135,7 +135,7 @@ export default function SavedProperties({
       setRemovingId(propertyId);
       setError("");
 
-      await togglePropertySave(token, propertyId);
+      await togglePropertySave(propertyId, token);
 
       setProperties((current) =>
         current.filter(
@@ -164,9 +164,11 @@ export default function SavedProperties({
       <section className="saved-properties-page">
         <div className="saved-properties-empty">
           <h2>Sign in to see your saved properties</h2>
+
           <p>
             Save homes you like and find them again anytime.
           </p>
+
           <button
             type="button"
             onClick={onRequireAuth}
@@ -253,7 +255,10 @@ export default function SavedProperties({
                   {image ? (
                     <img
                       src={image}
-                      alt={property.title || "Saved property"}
+                      alt={
+                        property.title ||
+                        "Saved property"
+                      }
                     />
                   ) : (
                     <div className="saved-property-image-placeholder">
