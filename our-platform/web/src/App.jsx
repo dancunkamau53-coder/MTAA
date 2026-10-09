@@ -32,21 +32,18 @@ function App() {
   const [user, setUser] = useState(() => {
     try {
       const savedUser = localStorage.getItem("mtaa_user");
-
       return savedUser ? JSON.parse(savedUser) : null;
     } catch (error) {
       console.error("Failed to load saved user:", error);
-
       localStorage.removeItem("mtaa_user");
       localStorage.removeItem("mtaa_token");
-
       return null;
     }
   });
 
-  const [authChecking, setAuthChecking] = useState(() => {
-    return Boolean(localStorage.getItem("mtaa_token"));
-  });
+  const [authChecking, setAuthChecking] = useState(() =>
+    Boolean(localStorage.getItem("mtaa_token"))
+  );
 
   const [properties, setProperties] = useState([]);
   const [loadingProperties, setLoadingProperties] = useState(true);
@@ -63,12 +60,13 @@ function App() {
   const [minParking, setMinParking] = useState("");
   const [furnishedFilter, setFurnishedFilter] = useState("");
 
+  // Restore a previously authenticated user.
   useEffect(() => {
     const token = localStorage.getItem("mtaa_token");
 
     if (!token) {
       setAuthChecking(false);
-      return;
+      return undefined;
     }
 
     let mounted = true;
@@ -77,35 +75,24 @@ function App() {
       try {
         const data = await getCurrentUser(token);
 
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
 
         if (!data?.user) {
           throw new Error("Invalid session");
         }
 
         setUser(data.user);
-
-        localStorage.setItem(
-          "mtaa_user",
-          JSON.stringify(data.user)
-        );
+        localStorage.setItem("mtaa_user", JSON.stringify(data.user));
       } catch (error) {
         console.error("Session validation failed:", error);
 
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
 
         localStorage.removeItem("mtaa_token");
         localStorage.removeItem("mtaa_user");
-
         setUser(null);
       } finally {
-        if (mounted) {
-          setAuthChecking(false);
-        }
+        if (mounted) setAuthChecking(false);
       }
     };
 
@@ -116,7 +103,10 @@ function App() {
     };
   }, []);
 
+  // Fetch listings whenever search or filter criteria change.
   useEffect(() => {
+    let cancelled = false;
+
     const loadProperties = async () => {
       try {
         setLoadingProperties(true);
@@ -124,71 +114,61 @@ function App() {
 
         const filters = {};
 
-        /*
-         * GENERAL PROPERTY SEARCH
-         * Sends searches such as:
-         * - House in Kasarani
-         * - Apartment in Ruiru
-         * - Hostel near KU
-         */
-        if (searchQuery.trim() !== "") {
-          filters.search = searchQuery.trim();
+        if (searchQuery.trim()) filters.search = searchQuery.trim();
+        if (locationQuery.trim()) filters.location = locationQuery.trim();
+        if (propertyTypeFilter.trim()) {
+          filters.propertyType = propertyTypeFilter.trim();
         }
-
-        if (locationQuery.trim() !== "") {
-          filters.location = locationQuery.trim();
-        }
-
-        if (propertyTypeFilter !== "") {
-          filters.propertyType = propertyTypeFilter;
-        }
-
-        if (minPrice !== "") {
-          filters.minPrice = minPrice;
-        }
-
-        if (maxPrice !== "") {
-          filters.maxPrice = maxPrice;
-        }
-
-        if (minBedrooms !== "") {
-          filters.bedrooms = minBedrooms;
-        }
-
-        if (minBathrooms !== "") {
-          filters.bathrooms = minBathrooms;
-        }
-
-        if (minParking !== "") {
-          filters.parking = minParking;
-        }
-
-        if (furnishedFilter !== "") {
-          filters.furnished = furnishedFilter;
-        }
+        if (minPrice !== "") filters.minPrice = minPrice;
+        if (maxPrice !== "") filters.maxPrice = maxPrice;
+        if (minBedrooms !== "") filters.bedrooms = minBedrooms;
+        if (minBathrooms !== "") filters.bathrooms = minBathrooms;
+        if (minParking !== "") filters.parking = minParking;
+        if (furnishedFilter !== "") filters.furnished = furnishedFilter;
 
         console.log("MTAA property filters:", filters);
 
         const data = await getProperties(filters);
 
-        setProperties(
-          Array.isArray(data?.properties)
-            ? data.properties
-            : []
-        );
-      } catch (error) {
-        console.error("Failed to load properties:", error);
+        if (cancelled) return;
 
+        if (data?.success === false) {
+          throw new Error(data.message || "Unable to load properties.");
+        }
+
+        const results = Array.isArray(data?.properties)
+          ? data.properties
+          : [];
+
+        console.log("MTAA properties returned:", results.length);
+        console.log(
+          "MTAA property types:",
+          results.map((property) => ({
+            title: property.title,
+            propertyType: property.propertyType,
+          }))
+        );
+
+        setProperties(results);
+      } catch (error) {
+        if (cancelled) return;
+
+        console.error("Failed to load properties:", error);
+        setProperties([]);
         setPropertyError(
           error?.message ||
             "We couldn't load listings. The service may be temporarily unavailable."
         );
       } finally {
-        setLoadingProperties(false);
+        if (!cancelled) setLoadingProperties(false);
       }
     };
 
     loadProperties();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     propertyLoadAttempt,
     searchQuery,
@@ -202,21 +182,18 @@ function App() {
     furnishedFilter,
   ]);
 
-  /*
-   * Search is now handled by the backend.
-   *
-   * We intentionally do not run the old local phrase
-   * filtering here because a search such as:
-   *
-   * "House in Kasarani"
-   *
-   * should be interpreted as multiple search terms
-   * by the backend rather than requiring the complete
-   * phrase to exist inside one property field.
-   */
+  // Keep property type matching consistent regardless of capitalization.
   const filteredProperties = useMemo(() => {
-    return properties;
-  }, [properties]);
+    if (!propertyTypeFilter) return properties;
+
+    const selectedType = propertyTypeFilter.trim().toLowerCase();
+
+    return properties.filter(
+      (property) =>
+        String(property.propertyType || "").trim().toLowerCase() ===
+        selectedType
+    );
+  }, [properties, propertyTypeFilter]);
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -233,31 +210,24 @@ function App() {
   const handleCategoryJump = (category) => {
     if (category === "Houses & Apartments") {
       setPropertyTypeFilter("House");
-    }
-
-    if (category === "Hostels") {
+    } else if (category === "Hostels") {
       setPropertyTypeFilter("Hostel");
-    }
-
-    if (category === "Commercial Spaces") {
+    } else if (category === "Commercial Spaces") {
       setPropertyTypeFilter("Commercial");
-    }
-
-    if (category === "Local Services") {
+    } else if (category === "Local Services") {
       setCurrentView("services");
       return;
     }
 
     setTimeout(() => {
-      document
-        .getElementById("properties")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
+      document.getElementById("properties")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     }, 80);
   };
 
+  // These nearby distances are illustrative, not live map calculations.
   const nearbyServiceCards = useMemo(() => {
     const baseLocation = locationQuery.trim() || "Nairobi";
 
@@ -265,42 +235,26 @@ function App() {
       {
         icon: "🏥",
         title: "Hospitals",
-        description:
-          "Urgent care and clinics close to your target area.",
-        distance:
-          baseLocation === "Nairobi"
-            ? "1.2 km"
-            : "2.4 km",
+        description: "Urgent care and clinics close to your target area.",
+        distance: baseLocation === "Nairobi" ? "1.2 km" : "2.4 km",
       },
       {
         icon: "🏫",
         title: "Schools",
-        description:
-          "Nearby campuses and learning centers for families.",
-        distance:
-          baseLocation === "Nairobi"
-            ? "850 m"
-            : "1.7 km",
+        description: "Nearby campuses and learning centers for families.",
+        distance: baseLocation === "Nairobi" ? "850 m" : "1.7 km",
       },
       {
         icon: "🛒",
         title: "Shopping",
-        description:
-          "Groceries, essentials, and local markets in reach.",
-        distance:
-          baseLocation === "Nairobi"
-            ? "600 m"
-            : "1.1 km",
+        description: "Groceries, essentials, and local markets in reach.",
+        distance: baseLocation === "Nairobi" ? "600 m" : "1.1 km",
       },
       {
         icon: "🚌",
         title: "Transit",
-        description:
-          "Public transport and commuter routes nearby.",
-        distance:
-          baseLocation === "Nairobi"
-            ? "400 m"
-            : "900 m",
+        description: "Public transport and commuter routes nearby.",
+        distance: baseLocation === "Nairobi" ? "400 m" : "900 m",
       },
     ];
   }, [locationQuery]);
@@ -309,26 +263,22 @@ function App() {
     () => [
       {
         name: "Kasarani",
-        vibe:
-          "Fast-growing, close to transport and retail",
+        vibe: "Fast-growing, close to transport and retail",
         price: "KSh 18k - 32k",
       },
       {
         name: "Westlands",
-        vibe:
-          "Upscale homes and strong lifestyle access",
+        vibe: "Upscale homes and strong lifestyle access",
         price: "KSh 35k - 65k",
       },
       {
         name: "Ruiru",
-        vibe:
-          "Family-friendly apartments and community spaces",
+        vibe: "Family-friendly apartments and community spaces",
         price: "KSh 15k - 28k",
       },
       {
         name: "Nairobi CBD",
-        vibe:
-          "Walkable urban living with strong business access",
+        vibe: "Walkable urban living with strong business access",
         price: "KSh 22k - 45k",
       },
     ],
@@ -384,10 +334,7 @@ function App() {
     setAuthChecking(false);
   };
 
-  const openProperty = (
-    propertyId,
-    fromView = "dashboard"
-  ) => {
+  const openProperty = (propertyId, fromView = "dashboard") => {
     setSelectedPropertyId(propertyId);
     setReturnView(fromView);
   };
@@ -404,11 +351,7 @@ function App() {
           padding: "24px",
         }}
       >
-        <div
-          style={{
-            textAlign: "center",
-          }}
-        >
+        <div style={{ textAlign: "center" }}>
           <div
             style={{
               fontSize: "32px",
@@ -418,15 +361,13 @@ function App() {
           >
             MTAA
           </div>
-
-          <p>
-            Checking your session...
-          </p>
+          <p>Checking your session...</p>
         </div>
       </div>
     );
   }
 
+  // Authenticated application views.
   if (user) {
     if (selectedPropertyId) {
       return (
@@ -441,12 +382,7 @@ function App() {
     }
 
     if (user.role === "ADMIN") {
-      return (
-        <AdminDashboard
-          user={user}
-          onLogout={handleLogout}
-        />
-      );
+      return <AdminDashboard user={user} onLogout={handleLogout} />;
     }
 
     if (
@@ -457,9 +393,7 @@ function App() {
         <Services
           user={user}
           initialTab={
-            currentView === "serviceProvider"
-              ? "provider"
-              : "directory"
+            currentView === "serviceProvider" ? "provider" : "directory"
           }
           initialServiceId={pendingServiceId}
           onBack={() => {
@@ -476,15 +410,10 @@ function App() {
       return (
         <MyProperties
           user={user}
-          onBack={() => {
-            setCurrentView("profile");
-          }}
-          onOpenProperty={(propertyId) => {
-            openProperty(
-              propertyId,
-              "myProperties"
-            );
-          }}
+          onBack={() => setCurrentView("profile")}
+          onOpenProperty={(propertyId) =>
+            openProperty(propertyId, "myProperties")
+          }
         />
       );
     }
@@ -492,15 +421,10 @@ function App() {
     if (currentView === "savedProperties") {
       return (
         <SavedProperties
-          onBack={() => {
-            setCurrentView("dashboard");
-          }}
-          onViewProperty={(propertyId) => {
-            openProperty(
-              propertyId,
-              "savedProperties"
-            );
-          }}
+          onBack={() => setCurrentView("dashboard")}
+          onViewProperty={(propertyId) =>
+            openProperty(propertyId, "savedProperties")
+          }
         />
       );
     }
@@ -513,18 +437,10 @@ function App() {
             setCurrentView("dashboard");
             setDashboardSection("overview");
           }}
-          onOpenSavedProperties={() => {
-            setCurrentView("savedProperties");
-          }}
-          onOpenMyProperties={() => {
-            setCurrentView("myProperties");
-          }}
-          onOpenPayments={() => {
-            setCurrentView("payments");
-          }}
-          onOpenNotifications={() => {
-            setCurrentView("notifications");
-          }}
+          onOpenSavedProperties={() => setCurrentView("savedProperties")}
+          onOpenMyProperties={() => setCurrentView("myProperties")}
+          onOpenPayments={() => setCurrentView("payments")}
+          onOpenNotifications={() => setCurrentView("notifications")}
         />
       );
     }
@@ -537,9 +453,7 @@ function App() {
             setCurrentView("dashboard");
             setDashboardSection("overview");
           }}
-          onOpenProfile={() => {
-            setCurrentView("profile");
-          }}
+          onOpenProfile={() => setCurrentView("profile")}
         />
       );
     }
@@ -552,9 +466,7 @@ function App() {
             setCurrentView("dashboard");
             setDashboardSection("overview");
           }}
-          onOpenProfile={() => {
-            setCurrentView("profile");
-          }}
+          onOpenProfile={() => setCurrentView("profile")}
         />
       );
     }
@@ -564,24 +476,13 @@ function App() {
         user={user}
         onLogout={handleLogout}
         initialSection={dashboardSection}
-        onViewProperty={(propertyId) => {
-          openProperty(
-            propertyId,
-            "dashboard"
-          );
-        }}
-        onOpenSavedProperties={() => {
-          setCurrentView("savedProperties");
-        }}
-        onOpenProfile={() => {
-          setCurrentView("profile");
-        }}
-        onOpenPayments={() => {
-          setCurrentView("payments");
-        }}
-        onOpenNotifications={() => {
-          setCurrentView("notifications");
-        }}
+        onViewProperty={(propertyId) =>
+          openProperty(propertyId, "dashboard")
+        }
+        onOpenSavedProperties={() => setCurrentView("savedProperties")}
+        onOpenProfile={() => setCurrentView("profile")}
+        onOpenPayments={() => setCurrentView("payments")}
+        onOpenNotifications={() => setCurrentView("notifications")}
       />
     );
   }
@@ -596,19 +497,19 @@ function App() {
     );
   }
 
+  // Public services directory.
   if (currentView === "services") {
     return (
       <Services
         user={null}
-        onBack={() => {
-          setCurrentView("dashboard");
-        }}
+        onBack={() => setCurrentView("dashboard")}
         onRequireAuth={handleServiceAuth}
         onRequireLogin={handleServiceLogin}
       />
     );
   }
 
+  // Public landing page.
   return (
     <div className="mtaa-app">
       <header className="navbar">
@@ -633,18 +534,14 @@ function App() {
 
           <button
             className="login-btn"
-            onClick={() => {
-              openAuth("login");
-            }}
+            onClick={() => openAuth("login")}
           >
             Login
           </button>
 
           <button
             className="signup-btn"
-            onClick={() => {
-              openAuth("register");
-            }}
+            onClick={() => openAuth("register")}
           >
             Create Account
           </button>
@@ -652,53 +549,39 @@ function App() {
       </header>
 
       <main>
-        <section
-          className="hero"
-          id="home"
-        >
+        <section className="hero" id="home">
           <div className="hero-content">
-            <p className="hero-label">
-              WELCOME TO MTAA
-            </p>
+            <p className="hero-label">WELCOME TO MTAA</p>
 
             <h1>
               Find a place.
               <br />
-              Find your{" "}
-              <span>community.</span>
+              Find your <span>community.</span>
             </h1>
 
             <p className="hero-description">
-              Discover houses, apartments,
-              hostels, commercial spaces and
-              useful services around you —
-              all in one platform.
+              Discover houses, apartments, hostels, commercial spaces and
+              useful services around you — all in one platform.
             </p>
 
             <form
               className="search-box"
               onSubmit={(event) => {
                 event.preventDefault();
+                document.getElementById("properties")?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
               }}
             >
               <div className="search-field">
-                <span className="search-icon">
-                  ⌕
-                </span>
-
+                <span className="search-icon">⌕</span>
                 <div>
-                  <small>
-                    WHAT ARE YOU LOOKING FOR?
-                  </small>
-
+                  <small>WHAT ARE YOU LOOKING FOR?</small>
                   <input
                     type="text"
                     value={searchQuery}
-                    onChange={(event) => {
-                      setSearchQuery(
-                        event.target.value
-                      );
-                    }}
+                    onChange={(event) => setSearchQuery(event.target.value)}
                     placeholder="Search houses, hostels, apartments..."
                   />
                 </div>
@@ -706,35 +589,18 @@ function App() {
 
               <div className="location-field">
                 <span>📍</span>
-
                 <div>
                   <small>LOCATION</small>
-
                   <input
                     type="text"
                     value={locationQuery}
-                    onChange={(event) => {
-                      setLocationQuery(
-                        event.target.value
-                      );
-                    }}
+                    onChange={(event) => setLocationQuery(event.target.value)}
                     placeholder="Kasarani, Nairobi"
                   />
                 </div>
               </div>
 
-              <button
-                type="button"
-                className="search-btn"
-                onClick={() => {
-                  document
-                    .getElementById("properties")
-                    ?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start",
-                    });
-                }}
-              >
+              <button type="submit" className="search-btn">
                 Search
               </button>
             </form>
@@ -744,165 +610,106 @@ function App() {
               className="hero-list-property-btn"
               onClick={startPropertyListing}
             >
-              List your property{" "}
-              <span aria-hidden="true">
-                →
-              </span>
+              List your property <span aria-hidden="true">→</span>
             </button>
           </div>
         </section>
 
-        <section
-          className="properties-section"
-          id="properties"
-        >
+        <section className="properties-section" id="properties">
           <div className="section-heading">
             <div>
-              <p className="section-label">
-                AVAILABLE PROPERTIES
-              </p>
-
-              <h2>
-                Find your next home.
-              </h2>
+              <p className="section-label">AVAILABLE PROPERTIES</p>
+              <h2>Find your next home.</h2>
             </div>
-
-            <p>
-              Explore real properties
-              currently available on MTAA.
-            </p>
+            <p>Explore real properties currently available on MTAA.</p>
           </div>
 
           <div className="filter-panel">
             <div className="filter-group">
-              <label>Property Type</label>
-
+              <label htmlFor="property-type-filter">Property Type</label>
               <select
+                id="property-type-filter"
                 value={propertyTypeFilter}
-                onChange={(event) => {
-                  setPropertyTypeFilter(
-                    event.target.value
-                  );
-                }}
+                onChange={(event) =>
+                  setPropertyTypeFilter(event.target.value)
+                }
               >
-                <option value="">
-                  Any type
-                </option>
-
-                <option value="Apartment">
-                  Apartment
-                </option>
-
-                <option value="House">
-                  House
-                </option>
-
-                <option value="Bedsitter">
-                  Bedsitter
-                </option>
-
-                <option value="Hostel">
-                  Hostel
-                </option>
-
-                <option value="Studio">
-                  Studio
-                </option>
-
-                <option value="Commercial">
-                  Commercial
-                </option>
+                <option value="">Any type</option>
+                <option value="Apartment">Apartment</option>
+                <option value="House">House</option>
+                <option value="Bedsitter">Bedsitter</option>
+                <option value="Hostel">Hostel</option>
+                <option value="Studio">Studio</option>
+                <option value="Commercial">Commercial</option>
               </select>
             </div>
 
             <div className="filter-group">
-              <label>Min Price</label>
-
+              <label htmlFor="min-price-filter">Min Price</label>
               <input
+                id="min-price-filter"
                 type="number"
                 min="0"
                 value={minPrice}
-                onChange={(event) => {
-                  setMinPrice(
-                    event.target.value
-                  );
-                }}
+                onChange={(event) => setMinPrice(event.target.value)}
                 placeholder="KSh"
               />
             </div>
 
             <div className="filter-group">
-              <label>Max Price</label>
-
+              <label htmlFor="max-price-filter">Max Price</label>
               <input
+                id="max-price-filter"
                 type="number"
                 min="0"
                 value={maxPrice}
-                onChange={(event) => {
-                  setMaxPrice(
-                    event.target.value
-                  );
-                }}
+                onChange={(event) => setMaxPrice(event.target.value)}
                 placeholder="KSh"
               />
             </div>
 
             <div className="filter-group">
-              <label>Bedrooms</label>
-
+              <label htmlFor="bedrooms-filter">Bedrooms</label>
               <input
+                id="bedrooms-filter"
                 type="number"
                 min="0"
                 value={minBedrooms}
-                onChange={(event) => {
-                  setMinBedrooms(
-                    event.target.value
-                  );
-                }}
+                onChange={(event) => setMinBedrooms(event.target.value)}
                 placeholder="2+"
               />
             </div>
 
             <div className="filter-group">
-              <label>Bathrooms</label>
-
+              <label htmlFor="bathrooms-filter">Bathrooms</label>
               <input
+                id="bathrooms-filter"
                 type="number"
                 min="0"
                 value={minBathrooms}
-                onChange={(event) => {
-                  setMinBathrooms(
-                    event.target.value
-                  );
-                }}
+                onChange={(event) => setMinBathrooms(event.target.value)}
                 placeholder="1+"
               />
             </div>
 
             <div className="filter-group">
-              <label>Parking</label>
-
+              <label htmlFor="parking-filter">Parking</label>
               <input
+                id="parking-filter"
                 type="number"
                 min="0"
                 value={minParking}
-                onChange={(event) => {
-                  setMinParking(
-                    event.target.value
-                  );
-                }}
+                onChange={(event) => setMinParking(event.target.value)}
                 placeholder="1+"
               />
             </div>
 
             <div className="filter-group">
-              <label>Furnished</label>
-
+              <label htmlFor="furnished-filter">Furnished</label>
               <select
+                id="furnished-filter"
                 value={furnishedFilter}
-                onChange={(event) => {
-                  setFurnishedFilter(event.target.value);
-                }}
+                onChange={(event) => setFurnishedFilter(event.target.value)}
               >
                 <option value="">Any</option>
                 <option value="true">Furnished</option>
@@ -930,15 +737,12 @@ function App() {
           {propertyError && (
             <div className="properties-message error">
               <p>{propertyError}</p>
-
               <button
                 type="button"
                 className="property-retry-btn"
-                onClick={() => {
-                  setPropertyLoadAttempt(
-                    (attempt) => attempt + 1
-                  );
-                }}
+                onClick={() =>
+                  setPropertyLoadAttempt((attempt) => attempt + 1)
+                }
               >
                 Try again
               </button>
@@ -949,9 +753,7 @@ function App() {
             !propertyError &&
             filteredProperties.length > 0 && (
               <div className="properties-result-count">
-                Showing{" "}
-                {filteredProperties.length}{" "}
-                properties
+                Showing {filteredProperties.length} properties
               </div>
             )}
 
@@ -959,229 +761,139 @@ function App() {
             !propertyError &&
             filteredProperties.length === 0 && (
               <div className="properties-message">
-                No properties match your
-                search filters.
+                No properties match your search filters.
               </div>
             )}
 
           <div className="property-grid">
-            {filteredProperties.map(
-              (property) => (
-                <div
-                  className="property-card"
-                  key={property.id}
-                >
-                  <div className="property-image">
-                    {property.imageUrl ? (
-                      <img
-                        src={property.imageUrl}
-                        alt={
-                          property.title ||
-                          "Property"
-                        }
-                      />
-                    ) : (
-                      <div className="property-placeholder">
-                        🏠
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="property-info">
-                    <p className="property-location">
-                      📍{" "}
-                      {property.location ||
-                        "Location unavailable"}
-                    </p>
-
-                    <h3>
-                      {property.title ||
-                        "Untitled Property"}
-                    </h3>
-
-                    <p className="property-description">
-                      {property.description ||
-                        "No description provided."}
-                    </p>
-
-                    <div className="property-details">
-                      <span>
-                        🛏️{" "}
-                        {property.bedrooms ?? 0}{" "}
-                        bedrooms
-                      </span>
-
-                      <span>
-                        🚿{" "}
-                        {property.bathrooms ?? 0}{" "}
-                        bathrooms
-                      </span>
-
-                      <span>
-                        🚗{" "}
-                        {property.parking ?? 0}{" "}
-                        parking
-                      </span>
-                    </div>
-
-                    <div className="property-bottom">
-                      <strong>
-                        KSh{" "}
-                        {Number(
-                          property.price || 0
-                        ).toLocaleString()}
-                      </strong>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedPropertyId(
-                            property.id
-                          );
-                        }}
-                      >
-                        View Property
-                      </button>
-                    </div>
-
-                    {property.owner && (
-                      <div className="property-owner">
-                        <small>
-                          Listed by{" "}
-                          <strong>
-                            {
-                              property.owner
-                                .name
-                            }
-                          </strong>
-                        </small>
-                      </div>
-                    )}
-                  </div>
+            {filteredProperties.map((property) => (
+              <div className="property-card" key={property.id}>
+                <div className="property-image">
+                  {property.imageUrl ? (
+                    <img
+                      src={property.imageUrl}
+                      alt={property.title || "Property"}
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="property-placeholder">🏠</div>
+                  )}
                 </div>
-              )
-            )}
+
+                <div className="property-info">
+                  <p className="property-location">
+                    📍 {property.location || "Location unavailable"}
+                  </p>
+
+                  <h3>{property.title || "Untitled Property"}</h3>
+
+                  <p className="property-description">
+                    {property.description || "No description provided."}
+                  </p>
+
+                  <div className="property-details">
+                    <span>🛏️ {property.bedrooms ?? 0} bedrooms</span>
+                    <span>🚿 {property.bathrooms ?? 0} bathrooms</span>
+                    <span>🚗 {property.parking ?? 0} parking</span>
+                  </div>
+
+                  <div className="property-bottom">
+                    <strong>
+                      KSh {Number(property.price || 0).toLocaleString()}
+                    </strong>
+                    <button
+                      type="button"
+                      onClick={() => openProperty(property.id)}
+                    >
+                      View Property
+                    </button>
+                  </div>
+
+                  {property.owner && (
+                    <div className="property-owner">
+                      <small>
+                        Listed by{" "}
+                        <strong>
+                          {property.owner.name || "MTAA Property Owner"}
+                        </strong>
+                      </small>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
         <section className="nearby-services-section">
           <div className="section-heading">
             <div>
-              <p className="section-label">
-                NEARBY SERVICES
-              </p>
-
-              <h2>
-                Live around your selected area.
-              </h2>
+              <p className="section-label">NEARBY SERVICES</p>
+              <h2>Live around your selected area.</h2>
             </div>
-
             <p>
-              Understand what is nearby
-              before you book a viewing
-              or move in.
+              Understand what is nearby before you book a viewing or move in.
             </p>
           </div>
 
           <div className="nearby-services-grid">
-            {nearbyServiceCards.map(
-              (service) => (
-                <div
-                  key={service.title}
-                  className="nearby-service-item"
-                >
-                  <div className="nearby-service-icon">
-                    {service.icon}
-                  </div>
-
-                  <div className="nearby-service-copy">
-                    <h3>
-                      {service.title}
-                    </h3>
-
-                    <p>
-                      {service.description}
-                    </p>
-                  </div>
-
-                  <div className="nearby-service-distance">
-                    <strong>
-                      {service.distance}
-                    </strong>
-
-                    <span>away</span>
-                  </div>
+            {nearbyServiceCards.map((service) => (
+              <div key={service.title} className="nearby-service-item">
+                <div className="nearby-service-icon">{service.icon}</div>
+                <div className="nearby-service-copy">
+                  <h3>{service.title}</h3>
+                  <p>{service.description}</p>
                 </div>
-              )
-            )}
+                <div className="nearby-service-distance">
+                  <strong>{service.distance}</strong>
+                  <span>away</span>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
         <section className="neighborhood-section">
           <div className="section-heading">
             <div>
-              <p className="section-label">
-                POPULAR AREAS
-              </p>
-
+              <p className="section-label">POPULAR AREAS</p>
               <h2>
                 Neighborhood picks
+                <br />
                 for your next move.
               </h2>
             </div>
-
             <p>
-              Quick market snapshots
-              to help you compare the
-              right area for your budget
-              and lifestyle.
+              Quick market snapshots to help you compare the right area for
+              your budget and lifestyle.
             </p>
           </div>
 
           <div className="neighborhood-grid">
-            {neighborhoodHighlights.map(
-              (area) => (
-                <article
-                  key={area.name}
-                  className="neighborhood-card"
-                >
-                  <div className="neighborhood-badge">
-                    {area.name}
-                  </div>
-
-                  <h3>{area.vibe}</h3>
-
-                  <p>{area.price}</p>
-                </article>
-              )
-            )}
+            {neighborhoodHighlights.map((area) => (
+              <article key={area.name} className="neighborhood-card">
+                <div className="neighborhood-badge">{area.name}</div>
+                <h3>{area.vibe}</h3>
+                <p>{area.price}</p>
+              </article>
+            ))}
           </div>
         </section>
 
-        <section
-          className="categories"
-          id="services"
-        >
+        <section className="categories" id="services">
           <div className="section-heading">
             <div>
-              <p className="section-label">
-                EXPLORE MTAA
-              </p>
-
+              <p className="section-label">EXPLORE MTAA</p>
               <h2>
                 Everything you need,
                 <br />
                 in one place.
               </h2>
             </div>
-
             <p>
-              MTAA connects people with
-              places, properties and
-              services in their community.
-              List your home or space and
-              reach buyers, renters and
-              local customers.
+              MTAA connects people with places, properties and services in
+              their community. List your home or space and reach buyers,
+              renters and local customers.
             </p>
           </div>
 
@@ -1190,36 +902,19 @@ function App() {
               className="category-card"
               role="button"
               tabIndex={0}
-              onClick={() => {
-                handleCategoryJump(
-                  "Houses & Apartments"
-                );
-              }}
+              onClick={() => handleCategoryJump("Houses & Apartments")}
               onKeyDown={(event) => {
-                if (
-                  event.key === "Enter" ||
-                  event.key === " "
-                ) {
+                if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-
-                  handleCategoryJump(
-                    "Houses & Apartments"
-                  );
+                  handleCategoryJump("Houses & Apartments");
                 }
               }}
             >
-              <div className="category-icon">
-                🏠
-              </div>
-
-              <h3>
-                Houses & Apartments
-              </h3>
-
+              <div className="category-icon">🏠</div>
+              <h3>Houses & Apartments</h3>
               <p>
-                Find your next home
-                from verified properties
-                around your community.
+                Find your next home from verified properties around your
+                community.
               </p>
             </div>
 
@@ -1228,34 +923,19 @@ function App() {
               id="hostels"
               role="button"
               tabIndex={0}
-              onClick={() => {
-                handleCategoryJump(
-                  "Hostels"
-                );
-              }}
+              onClick={() => handleCategoryJump("Hostels")}
               onKeyDown={(event) => {
-                if (
-                  event.key === "Enter" ||
-                  event.key === " "
-                ) {
+                if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-
-                  handleCategoryJump(
-                    "Hostels"
-                  );
+                  handleCategoryJump("Hostels");
                 }
               }}
             >
-              <div className="category-icon">
-                🏨
-              </div>
-
+              <div className="category-icon">🏨</div>
               <h3>Hostels</h3>
-
               <p>
-                Discover hostels and
-                student accommodation
-                close to where you need.
+                Discover hostels and student accommodation close to where
+                you need.
               </p>
             </div>
 
@@ -1263,36 +943,18 @@ function App() {
               className="category-card"
               role="button"
               tabIndex={0}
-              onClick={() => {
-                handleCategoryJump(
-                  "Commercial Spaces"
-                );
-              }}
+              onClick={() => handleCategoryJump("Commercial Spaces")}
               onKeyDown={(event) => {
-                if (
-                  event.key === "Enter" ||
-                  event.key === " "
-                ) {
+                if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-
-                  handleCategoryJump(
-                    "Commercial Spaces"
-                  );
+                  handleCategoryJump("Commercial Spaces");
                 }
               }}
             >
-              <div className="category-icon">
-                🏢
-              </div>
-
-              <h3>
-                Commercial Spaces
-              </h3>
-
+              <div className="category-icon">🏢</div>
+              <h3>Commercial Spaces</h3>
               <p>
-                Find shops, offices,
-                businesses and other
-                commercial spaces.
+                Find shops, offices, businesses and other commercial spaces.
               </p>
             </div>
 
@@ -1300,34 +962,18 @@ function App() {
               className="category-card"
               role="button"
               tabIndex={0}
-              onClick={() => {
-                handleCategoryJump(
-                  "Local Services"
-                );
-              }}
+              onClick={() => handleCategoryJump("Local Services")}
               onKeyDown={(event) => {
-                if (
-                  event.key === "Enter" ||
-                  event.key === " "
-                ) {
+                if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-
-                  handleCategoryJump(
-                    "Local Services"
-                  );
+                  handleCategoryJump("Local Services");
                 }
               }}
             >
-              <div className="category-icon">
-                🛠️
-              </div>
-
+              <div className="category-icon">🛠️</div>
               <h3>Local Services</h3>
-
               <p>
-                Discover useful
-                services and businesses
-                around you.
+                Discover useful services and businesses around you.
               </p>
             </div>
           </div>
